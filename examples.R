@@ -1,5 +1,6 @@
 # examples
 library(psd)
+library(pracma)
 # kronecker delta
 delta <- function(n_samples, loc){
   zeros <- numeric(n_samples)
@@ -11,7 +12,9 @@ comb <- function(n_samples, loc, n_repeats){
   rep(delta(n_samples, loc), n_repeats)
 }
 
-tri <- c(1, 2, 3, 2, 1, 0, -1, -2, -3, -2, -1, 0)
-func <- conv(tri, comb(20, 10, 10))
-
+x <- -10:10
+pulse <- diff(exp(-x^2/10))
+plot(pulse)
+func <- conv(pulse, comb(100, 25, 100))
+plot(func, type='l')
 plot(fftshift(abs(fft(func))), type='l')

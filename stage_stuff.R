@@ -1,6 +1,8 @@
 # transition matrices
+# markov stuff
 library(markovchain)
 library(tidyverse)
+
 # table of pre/post stages
 transition_table <- function(df){
   n <- length(df)
@@ -35,3 +37,33 @@ pe2 <- m2 %>% recast %>%
   summarize(par_ent = t(partition_entropy(STAGE)))
 pe <- left_join(pe1, pe2, by='ID') %>% 
   drop_na()
+
+hypno_mm1 <- m1 %>% group_by(ID) %>% 
+  arrange(E) %>% 
+  summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
+            tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
+            stagesum=sum(STAGE_N/sum(PERSISTENT_SLEEP)))
+
+hypno_mm2 <- m2 %>% group_by(ID) %>% 
+  arrange(E) %>% 
+  summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
+            tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
+            stagesum=sum(STAGE_N)/sum(PERSISTENT_SLEEP))
+
+hypno <- left_join(hypno_mm1, hypno_mm2, by='ID') %>% 
+  drop_na()
+cor(hypno$stagesum.x, hypno$stagesum.y)
+plot(hypno$stagesum.x, hypno$stagesum.y)
+##### unpack and summarize all Markov variables
+
+# why doesn't this work
+hypno_mm_full1 <- m1 %>% group_by(ID) %>%
+  arrange(E) %>%
+  summarize(!!!unmatrix(markovchainFit(.$STAGE)$estimate@transitionMatrix))
+
+hypno_mm_full2 <- m2 %>%
+  arrange(E) %>% group_by(ID) %>%
+  summarize(!!!(unmatrix(markovchainFit(.$STAGE)$estimate@transitionMatrix)))
+
+
+ggplot(hypno, aes(x=log(det.x)-log(det.y)))+geom_freqpoly()
