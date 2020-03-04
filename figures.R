@@ -1,5 +1,6 @@
 library(tidyverse)
 library(patchwork)
+library(tvR)
 
 plot_defaults <- function(p) {
 p + scale_color_brewer(palette='Set1')+
@@ -20,28 +21,31 @@ hypno_plot_tv <- function(data, var, lambda){
   hypno_plot(data, var)+geom_point(y=denoise1(data[[var]], lambda=lambda), color='black', size=0.2)
 }
 
-compare_CHB <- function(m1,m2,ID,CH,B){
+compare_CHB <- function(m1,m2,ID='300001',CH='O1',B="SIGMA",cycle=1){
   f1 <- m1 %>% 
     filter(ID==sym(!!ID),
            CH==sym(!!CH),
-           B==sym(!!B)) %>%
-    arrange(E)
+           B==sym(!!B),
+           CYCLE==cycle) %>%
+    arrange(E) %>% remove_outliers()
   p1 <- ggplot(f1, aes(x=E,y=dnx(!!sym(paste(B,CH,sep='_')))))+
     geom_point(aes(y=!!sym(paste(B,CH,sep='_')), color=STAGE), size=0.1)+
     geom_path()+ scale_color_brewer(palette='Set1')+
     scale_fill_brewer(palette='Set1')+
-    theme_minimal()
+    theme_minimal()+scale_y_log10()+ggtitle(ID)
     
   f2 <- m2 %>% 
     filter(ID==sym(!!ID),
            CH==sym(!!CH),
-           B==sym(!!B)) %>%
-    arrange(E)
+           B==sym(!!B),
+           CYCLE==cycle) %>%
+    arrange(E) %>% remove_outliers()
   p2 <- ggplot(f2, aes(x=E,y=dnx(!!sym(paste(B,CH,sep='_')))))+
     geom_point(aes(y=!!sym(paste(B,CH,sep='_')), color=STAGE), size=0.1)+
     geom_path()+ scale_color_brewer(palette='Set1')+
     scale_fill_brewer(palette='Set1')+
-    theme_minimal()
+    theme_minimal()+scale_y_log10()
   
   p1/p2
 }
+

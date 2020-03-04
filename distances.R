@@ -3,86 +3,53 @@ library(dtw)
 library(tidyverse)
 library(tvR)
 library(NMF)
+
+library(ggbeeswarm)
+
 source('~/Desktop/dynamics/outliers.R')
 source('~/Desktop/dynamics/chat.R')
-library(MASS)
+source('~/Desktop/dynamics/figures.R')
 
 dnx <- function(x){denoise1(x,1e30)}
-dtw_table <- function(m1, m2){
+#dtw_table <- function(m1, m2){
   
-  dist_tab <- NULL
+  distance2 <- NULL
 
   # builds dynamic-time-warping distance table
   for (id in flatten(IDlist)){
     print(id)
     rows <- list()
-    for (i in 3:98){
-      test1 <- m1 %>% filter(ID==id, CYCLE==1) %>% arrange(E) #%>% remove_outliers()
-      test2 <- m2 %>% filter(ID==id, CYCLE==1) %>% arrange(E) #%>% remove_outliers()
-      d1 <- diff(dnx(test1[, i]))
-      d2 <- diff(dnx(test2[, i]))
-      rows[[colnames(test1)[i]]] <- dtw(d1/max(d1), d2/max(d2),  
+    test1 <- m1 %>% filter(ID==id, CYCLE==1) %>% arrange(E)
+    test1 <- remove_outliers(test1)
+    test2 <- m2 %>% filter(ID==id, CYCLE==1) %>% arrange(E)
+    test2 <- remove_outliers(test2)
+    for (i in 1:96){
+      # use signal instead of derivative for comparison
+      d1 <- diff(log10(dnx(test1[, i]/max(test1[,i]))))
+      d2 <- diff(log10(dnx(test2[, i]/max(test2[,i]))))
+      rows[[colnames(test1)[i]]] <- dtw(d1, d2,  
                                       step.pattern=rabinerJuangStepPattern(1, "c", TRUE), 
-                                      open.begin=FALSE, open.end=TRUE)$normalizedDistance
+                                      open.begin=TRUE, open.end=TRUE)$normalizedDistance
     }
   t <- as_tibble(rows)
   t$ID <- id
   
-  dist_tab <- bind_rows(dist_tab,t)
-}
+  distance2 <- bind_rows(distance2,t)
 }
 
-#for (i in 1:96){
-  ggplot(dist_tab, aes(x=log(ALPHA_O1)))+geom_histogram()
-#}
-  medians <- pivot_dist(dist_tab) %>% 
-    group_by(CH,B) %>% 
-    summarize(med=median(value))
-distp <- pivot_dist(dist_tab)
 
+######### FIGURES ########
+# put in tidy form
+distp <- pivot_dist(distance)
+distp2 <- pivot_dist(distance2)
+
+#### BIMODALITY AND CYCLE LENGTH SIMILARITY
 # Plot violins (note bimodality in beta)
 ggplot(distp,aes(x=CH,y=value)) + 
   geom_violin() + 
   facet_wrap(~B) +
   scale_y_log10()
 
-# plot beeswarm for each channel in beta band
-ggplot(filter(distp,B=="BETA"),aes(x=0,y=value)) + 
-  geom_beeswarm() + 
-  facet_wrap(~CH)+
-  scale_y_log10()
-
-# plot beta distance F3
-ggplot(filter(distp,B=="BETA", CH=='F3'), aes(x=value))+
-  geom_histogram(bins=40)+
-  scale_x_log10()
-
-# plot beta distance T3
-ggplot(filter(distp,B=="BETA", CH=='T3'), aes(x=value))+
-  geom_histogram(bins=100) + xlim(0,10)
-
-# plot beta distance all channels
-ggplot(filter(distp,B=="BETA"), aes(x=value))+
-  geom_histogram(bins=100) + xlim(0,10)
-
-# plot beeswarm for each channel in theta band
-ggplot(filter(distp,B=="THETA"),aes(x=0,y=value)) + 
-  geom_beeswarm() + 
-  facet_wrap(~CH)+
-  scale_y_log10()
-
-# plot theta distance O2
-ggplot(filter(distp,B=="BETA", CH=='O2'), aes(x=value))+
-  geom_histogram(bins=40)+
-  scale_x_log10()
-
-# plot theta distance T4
-ggplot(filter(distp,B=="BETA", CH=='T4'), aes(x=value))+
-  geom_histogram(bins=100) + xlim(0,10)
-
-# plot theta distance M2
-ggplot(filter(distp,B=="BETA", CH=='M2'), aes(x=value))+
-  geom_histogram(bins=100) + xlim(0,10)
 
 # plot cycle length for first recording
 m1cycle_length <- m1 %>% select(ID,CYCLE) %>% 
@@ -102,10 +69,13 @@ ggplot(m2cycle_length, aes(x=cycle_length))+geom_histogram()
 diffcycle_length <- m2cycle_length %>% 
   transmute(ID=ID, 
             difflength=m1cycle_length$cycle_length-m2cycle_length$cycle_length)
-ggplot(diffcycle_length, aes(x=difflength))+geom_histogram(bins=100)
+ggplot(diffcycle_length, aes(x=abs(difflength)))+
+  geom_histogram(bins=40)+
+  geom_freqpoly()
 
 # find individuals whose cycle lengths were similar
 similar_lengthID <- filter(diffcycle_length, abs(difflength)<50)$ID
+
 
 # plot beeswarm for cycles with similar length
 ggplot(filter(distp,B=="BETA", ID %in% similar_lengthID),aes(x=0,y=value)) + 
@@ -113,31 +83,77 @@ ggplot(filter(distp,B=="BETA", ID %in% similar_lengthID),aes(x=0,y=value)) +
   facet_wrap(~CH)+
   scale_y_log10()
 
-# look at O2
-ggplot(filter(distp,B=="BETA", CH=='O2', ID %in% similar_lengthID), aes(x=value))+
-  geom_histogram(bins=50) + xlim(0,10)
+# look at T3
+ggplot(filter(distp,B=="BETA", CH=='T3', ID %in% similar_lengthID), aes(x=value))+
+  geom_histogram(bins=50) #+ xlim(0,10)
 
-# look at O1
-ggplot(filter(distp,B=="BETA", CH=='O1',ID %in% similar_lengthID), aes(x=value))+
-  geom_histogram(bins=50) + xlim(0,10)
+# look at T4
+ggplot(filter(distp,B=="BETA", CH=='T4',ID %in% similar_lengthID), aes(x=value))+
+  geom_histogram(bins=50) #+ xlim(0,10)
 
+# sum left channels
 ggplot(filter(distp,B=="BETA",
-             CH %in% c('C3','F3','O1','T3')), 
+             CH %in% c('C3','F3','O1','T3'),
+             ID %in% similar_lengthID), 
        aes(x=value)) +
-  geom_histogram(bins=50) + xlim(0,10)
+  geom_histogram(bins=200) + xlim(0,10)
 
+# sum right channels
 ggplot(filter(distp,B=="BETA",
-              CH %in% c('C4','F4','O2','T4')), 
+              CH %in% c('C4','F4','O2','T4'),
+              ID %in% similar_lengthID), 
        aes(x=value)) +
-  geom_histogram(bins=50) + xlim(0,10)
+  geom_histogram(bins=200) + xlim(0,10)
 
 # look at all channels summed
 ggplot(filter(distp,B=="BETA", ID %in% similar_lengthID), aes(x=value))+
-  geom_histogram(bins=50) + xlim(0,10)
+  geom_histogram(bins=50) #+ xlim(0,10)
 
 # Plot violins
 ggplot(filter(distp, ID %in% similar_lengthID),aes(x=CH,y=value)) + 
   geom_violin() + 
   facet_wrap(~B) +
   scale_y_log10()
+
+#### individuals
+
+# plot nth place individual/channel/band
+idx <- 1
+df <- arrange(distp, value) %>% filter(ID %in% similar_lengthID)
+compare_CHB(m1, m2, df[idx,]$ID, df[idx,]$CH, df[idx,]$B, cycle=1)
+print(df[idx,])
+
+
+length(similar_lengthID)
+distpg <- distp %>% group_by(CH, B) %>% summarize(median=median(value))
+dfpg <- df %>% group_by(CH, B) %>% summarize(median=median(value))
+ggplot(distpg, aes(x=CH, y=B,fill=-log10(median)))+geom_tile()+ggtitle('all cycles')
+ggplot(dfpg, aes(x=CH, y=B,fill=-log10(median)))+geom_tile()+ggtitle('similar length cycles (n=126)')
+
+ggplot(df,aes(x=B,y=value))+
+  geom_boxplot()+
+  facet_wrap(~CH)+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_log10()
+
+
+
+
+distbeta <- df %>% filter(B == 'BETA') %>% arrange(value)
+idx <- 1
+compare_CHB(m1, m2, 
+            distbeta[idx,]$ID, 
+            distbeta[idx,]$CH, 
+            distbeta[idx,]$B, 
+            cycle=1)
+
+distdelta <- df %>% filter(B == 'DELTA')
+idx <- 1464
+compare_CHB(m1, m2, 
+            distdelta[idx,]$ID, 
+            distdelta[idx,]$CH, 
+            distdelta[idx,]$B, 
+            cycle=1)
+
+
 

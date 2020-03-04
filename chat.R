@@ -3,25 +3,46 @@ library(tidyverse)
 
 `%notin%` <- Negate(`%in%`)
 
-# Use IDs that exist in both sessions and where DTW succeeds
-IDlist <- tibble(ID=intersect(unique(m2$ID), unique(m1$ID))) %>%
-  filter(ID %notin% c('300215', 
-                      '300295',
-                      '300397',
-                      '300442',
-                      '300513',
-                      '300612',
-                      '300853',
-                      '300868',
-                      '300944',
-                      '300968',
-                      '301053',
-                      '301055',
-                      '301057',
-                      '301108'))
+#### LOAD DATA
 
-m1 <- m1 %>% drop_na()
-m2 <- m2 %>% drop_na()
+# need to be more delicate about dropping NA (due to NREM2-specific variables)
+# this part will change if different variables are used
+m1 <- m1c %>% recast() %>% 
+  select(3:98,STAGE, ID, CYCLE,E) %>% 
+  drop_na()
+
+m2 <- m2c %>% recast() %>% 
+  select(3:98,STAGE, ID, CYCLE,E) %>% 
+  drop_na()
+
+# Use IDs that exist in both sessions and where DTW succeeds
+IDlist <- tibble(ID=intersect(unique(m2$ID), unique(m1$ID))) #%>%
+  # filter(ID %notin% c('300215', 
+  #                     '300295',
+  #                     '300397',
+  #                     '300442',
+  #                     '300513',
+  #                     '300612',
+  #                     '300853',
+  #                     '300868',
+  #                     '300944',
+  #                     '300968',
+  #                     '301053',
+  #                     '301055',
+  #                     '301057',
+  #                     '301108'))
+
+
+
+# make sure all stages are in the cycle
+
+m1stages <- list()
+m2stages <- list()
+for (id in flatten(IDlist)){
+  m1stages[[id]] <- m1 %>% filter(ID==id, CYCLE==1) %>% select(STAGE) %>% unique()
+  m2stages[[id]] <- m2 %>% filter(ID==id,CYCLE==1) %>% select(STAGE) %>% unique()
+}
+
 
 
 catses <- function(df1,df2, var){
