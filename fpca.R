@@ -15,6 +15,7 @@ fpca_all <- function(df){
   fp <- FPCA(fi$Ly,fi$Lt)
 }
 
+
 fpca_one <- function(df,ID){
   df <- df %>% filter(ID==sym(!!ID)) %>% arrange(E)
   df <- remove_outliers(df)
