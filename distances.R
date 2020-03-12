@@ -261,3 +261,17 @@ for (id1 in flatten(IDlist)){
   }
 }
 dtab3hr_identicalduration <- dtab
+
+#####
+# FIRST 360 EPOCHS
+#####
+
+dc3_1 <- m1c %>% 
+  select(ID, E, DELTA_C3) %>% 
+  group_by(ID) %>% top_n(-360,E) %>% 
+  arrange(E)
+
+dc3_2 <- m2c %>% 
+  select(ID, E, DELTA_C3) %>% 
+  group_by(ID) %>% top_n(-360,E) %>% 
+  arrange(E)
