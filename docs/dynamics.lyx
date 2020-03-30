@@ -1,0 +1,189 @@
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_math auto
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section*
+Methods
+\end_layout
+
+\begin_layout Subsection*
+Data handling
+\end_layout
+
+\begin_layout Standard
+We analyzed the subset of the ChAT dataset for which eight EEG and four
+ reference channels were available for both initial and followup recordings
+ (
+\begin_inset Formula $n=405)$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+We extracted the first sleep cycle and restricted further analysis to individual
+s whose first cycle durations were similar in length (
+\begin_inset Formula $\pm25$
+\end_inset
+
+ minutes; 
+\begin_inset Formula $n=127$
+\end_inset
+
+).
+ We computed spectral power in each of five classical frequency bands.
+ These hypnographic quantities were normalized to unity maximum (
+\begin_inset Formula $x/\max x$
+\end_inset
+
+) before transforming to logarithmic coordinates.
+ Outliers were then removed using the kNN distance, and then time-derivatives
+ were estimated with heavy (
+\begin_inset Formula $\lambda=10^{30})$
+\end_inset
+
+ total variation regularization.
+ The edit distance with real penalty was then computed on the estimated
+ 
+\begin_inset Formula $\frac{d}{dt}(\log x)=\dot{x}/x$
+\end_inset
+
+.
+ A distance was thereby assigned between the two recording sessions for
+ each individual, channel, and frequency band.
+ 
+\end_layout
+
+\begin_layout Standard
+For each individual, the 96-dimensional 
+\end_layout
+
+\begin_layout Standard
+For every channel, beta-band power provided the least-variant waveform shape
+ (
+\begin_inset Formula $p=6^{-11}$
+\end_inset
+
+; roll the dice on median value excluding totals; Figure 1).
+ The 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename /Users/RobBWH/Desktop/2020-03-05/beta_boxplot.pdf
+	scale 50
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section*
+To do
+\end_layout
+
+\begin_layout Standard
+Disentangle cycles
+\end_layout
+
+\begin_layout Standard
+Similarity matrices
+\end_layout
+
+\begin_layout Standard
+Whole-night edit distance (with stage-dependent penalty?) on staging
+\end_layout
+
+\end_body
+\end_document
