@@ -121,3 +121,12 @@ night_night <- function(data){
   p0 + p1 + p2 + p3 + 
     plot_layout(widths = c(1, 5), heights = unit(c(1, 5), c('cm', 'null')), guides='collect')
 }
+
+# HYPNOGRAM, TWO INDIVIDUALS, TWO NIGHTS
+hypno_compare <- function(h1, h2, id1, id2){
+  h1 <- filter(h1, ID==id1)
+  h2 <- filter(h2, ID==id2)
+  p1 <- ggplot(h1, aes(x=E, y=STAGE_N))+geom_line()
+  p2 <- ggplot(h2, aes(x=E, y=STAGE_N))+geom_line()
+  p1/p2
+}

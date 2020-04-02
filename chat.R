@@ -3,48 +3,85 @@ library(tidyverse)
 
 `%notin%` <- Negate(`%in%`)
 
+# demographic info
+demofile <- '~/dyn/data/chat/chat-baseline.csv'
+demo <- read_csv(demofile)
+
+
+# update this function to include/exclude participants based on 
+# demographic or other info
+filter_dataset <- function(demo, baseline_data, followup_data){
+  dataset <- list()
+  EXCLUDE <- c(300058,300368,300668) # first epoch isn't wake
+  IDwholenight <- wholenight_only(demo)$nsrrid
+  IDb <- unique(baseline_data$ID)
+  IDf <- unique(followup_data$ID)
+  # include participants with whole-night recording for baseline/followup
+  INCLUDE <- intersect(intersect(IDwholenight, IDb), IDf)
+  dataset$baseline <- baseline_data %>%
+    filter(ID %in% INCLUDE, ID %notin% EXCLUDE)
+  dataset$followup <- followup_data %>%
+    filter(ID %in% INCLUDE, ID %notin% EXCLUDE)
+  dataset$demo <- demo %>%
+    filter(nsrrid %in% INCLUDE, nsrrid %notin% EXCLUDE)
+  dataset$IDs <- unique(dataset$demo$nsrrid)
+  dataset
+}
+
 #### LOAD DATA
 
+#hypno-epochs
+load_hypno <- function(){
+  hypno_baseline <- read_table2('~/dyn/data/chat/HYPNO-E.txt', guess_max = 1000000) %>%
+    filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='baseline')
+
+  hypno_followup <- read_table2('~/dyn/data/chat/HYPNO-E.txt', guess_max = 1000000) %>%
+    filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='followup')
+  
+  hypno_baseline_stats <-  read_table2('~/dyn/data/chat/HYPNO.txt', guess_max = 1000000) %>%
+    filter(!grepl('nonrandomized', ID)) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='baseline')
+  
+  hypno_followup_stats <-  read_table2('~/dyn/data/chat/HYPNO.txt', guess_max = 1000000) %>%
+    filter(!grepl('nonrandomized', ID)) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='followup')
+  
+  hypno_ds <- filter_dataset(demo, hypno_baseline, hypno_followup)
+  hypno_ds$followup_stats <- hypno_followup_stats %>% 
+    filter(ID %in% hypno_ds$IDs)
+  hypno_ds$baseline_stats <- hypno_baseline_stats %>% 
+    filter(ID %in% hypno_ds$IDs)
+  hypno_ds
+}
 # need to be more delicate about dropping NA (due to NREM2-specific variables)
 # this part will change if different variables are used
-m1 <- m1c %>% recast() %>% 
-  select(3:98,STAGE, ID, CYCLE,E) %>% 
-  drop_na()
-
-m2 <- m2c %>% recast() %>% 
-  select(3:98,STAGE, ID, CYCLE,E) %>% 
-  drop_na()
-
-# Use IDs that exist in both sessions and where DTW succeeds
-IDlist <- tibble(ID=intersect(unique(m2$ID), unique(m1$ID))) #%>%
-  # filter(ID %notin% c('300215', 
-  #                     '300295',
-  #                     '300397',
-  #                     '300442',
-  #                     '300513',
-  #                     '300612',
-  #                     '300853',
-  #                     '300868',
-  #                     '300944',
-  #                     '300968',
-  #                     '301053',
-  #                     '301055',
-  #                     '301057',
-  #                     '301108'))
+# m1 <- m1c %>% recast() %>% 
+#   select(3:98,STAGE, ID, CYCLE,E) %>% 
+#   drop_na()
+# 
+# m2 <- m2c %>% recast() %>% 
+#   select(3:98,STAGE, ID, CYCLE,E) %>% 
+#   drop_na()
 
 
 
 # make sure all stages are in the cycle
 
-m1stages <- list()
-m2stages <- list()
-for (id in flatten(IDlist)){
-  m1stages[[id]] <- m1 %>% filter(ID==id, CYCLE==1) %>% select(STAGE) %>% unique()
-  m2stages[[id]] <- m2 %>% filter(ID==id,CYCLE==1) %>% select(STAGE) %>% unique()
-}
+# m1stages <- list()
+# m2stages <- list()
+# for (id in flatten(IDlist)){
+#   m1stages[[id]] <- m1 %>% filter(ID==id, CYCLE==1) %>% select(STAGE) %>% unique()
+#   m2stages[[id]] <- m2 %>% filter(ID==id,CYCLE==1) %>% select(STAGE) %>% unique()
+# }
 
 
-
+# concatenate sessions for one variable
 catses <- function(df1,df2, var){
   df1 <- select(df1, E, ID, !!sym(var))
   df2 <- select(df2, E, ID, !!sym(var))
@@ -69,14 +106,18 @@ recast <- function(df){
   df <- mutate(df, ID=str_sub(ID, -6))
 }
 
-# some data are off by 10^3
+# note: some data are off by 10^3
 rescale <- function(df){
   for (ID in unique(df$IDs)){
     flag_outliers() %>% max()
   }
 }
 
-# filter by whether 
-merge_stage_info <- function(m1,m2){
-  
+wholenight_only <- function(demo){
+  demo %>% 
+    filter(recbeaw==0,losbeg==0,losoth==0)
 }
+
+
+
+
