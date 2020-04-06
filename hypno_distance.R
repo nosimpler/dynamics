@@ -104,6 +104,10 @@ make_distance_table <- function(ds, quantity){
 }
 
 
+
+
+
+
 #####
 # compare distributions
 #####
@@ -135,4 +139,5 @@ best_match <- function(dist_table){
     filter(value==min(value)) %>%
     filter(row_number()==1)
 }
+
 

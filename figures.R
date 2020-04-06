@@ -123,10 +123,34 @@ night_night <- function(data){
 }
 
 # HYPNOGRAM, TWO INDIVIDUALS, TWO NIGHTS
-hypno_compare <- function(h1, h2, id1, id2){
-  h1 <- filter(h1, ID==id1)
+hypno_compare <- function(h, id1, id2, title='', remove_first_wake=TRUE, epoch_range=NULL){
+  h1 <- h$baseline
+  h2 <- h$followup
+  h1 <- filter(h1, ID==id1) 
   h2 <- filter(h2, ID==id2)
-  p1 <- ggplot(h1, aes(x=E, y=STAGE_N))+geom_line()
-  p2 <- ggplot(h2, aes(x=E, y=STAGE_N))+geom_line()
-  p1/p2
+  if (remove_first_wake){
+    h1 <- h1 %>% arrange(E) %>%
+      select(E, STAGE_N) %>% 
+      filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
+    h2 <- h2 %>% arrange(E) %>%
+      select(E, STAGE_N) %>% 
+      filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
+  }
+  if (!is.null(epoch_range)){
+      p1 <- ggplot(h1[epoch_range,], aes(x=E, y=STAGE_N))+geom_line()
+      p2 <- ggplot(h2[epoch_range,], aes(x=E, y=STAGE_N))+geom_line()
+  } else {
+    p1 <- ggplot(h1, aes(x=E, y=STAGE_N))+geom_line()
+    p2 <- ggplot(h2, aes(x=E, y=STAGE_N))+geom_line()
+  }
+  (p1 + ggtitle(title))/p2 
 }
+
+# Set of hypnogram pairs from best and/or worst match
+plot_matches <- function(match_table, h){
+  match_table_plots <- match_table %>% 
+    mutate(plot=list(hypno_compare(h, ID1, ID2, epoch_range=1:300, title=MEASURE)))
+  match_table_plots$plot
+}
+
+

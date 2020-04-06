@@ -14,7 +14,7 @@ dist_matrix <- function(dist_tab, D){
     select(2:length(.)) %>%
     as.matrix()
 }
-dist_mat <- dist_matrix(dist_diag_l, 'pdc')
+dist_mat <- dist_matrix(dist_diag_l, 'ncd')
 hb <- hypno_ds$baseline_stats
 hf <- hypno_ds$followup_stats
 htb <- tca$baseline
@@ -37,7 +37,18 @@ rvars <- left_join(htbn, htfn, by="ID", suffix=c(".baseline", ".followup")) %>%
                            #mds2=fit[,2],
                  #          mds3=fit[,3]
                            ) %>%
-  mutate(male=demo$male)
-
+  mutate(tst_baseline=hb$TST,
+         tst_followup=hf$TST,
+           male=demo$male, 
+         age=demo$ageyear_at_meas, 
+         race=as.factor(demo$race3),
+         bmi=demo$bmiz) #%>%
+  #filter(mds1 > -0.2)
+#idx <- nn(rvars$mds1)[['Location of Outlier']]
+#rvars <- rvars[-idx,]
+hist(rvars$mds1)
 summary(lm(mds1~., data=select(rvars,-ID)),
         signif.stars=TRUE)
+coeffs <- summary(lm(mds1~., data=select(rvars,-ID)),
+        signif.stars=TRUE)$coefficients
+coeffs[coeffs[,4]< 0.05,]
