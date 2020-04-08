@@ -1,0 +1,156 @@
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\use_minted 0
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Section*
+Methods
+\end_layout
+
+\begin_layout Subsection*
+Data handling
+\end_layout
+
+\begin_layout Standard
+We analyzed the subset (
+\begin_inset Formula $n=363)$
+\end_inset
+
+ of the ChAT dataset for which eight EEG and four reference channels were
+ available for both initial and followup recordings, and where recordings
+ were not interrupted mid-session according to clinical notes, further excluding
+ three children who were not awake at recording onset according to .
+ For each distance measure, we compared distributions of intra-individual
+ 
+\begin_inset Formula $D_{AA}=d(A_{baseline},A_{followup})$
+\end_inset
+
+ to interindividual distances 
+\begin_inset Formula $D_{AB}=d(A_{baseline},B_{followup})$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+Those measures for which 
+\begin_inset Formula $D_{AA}<D_{AB}$
+\end_inset
+
+ measure hypnographic quantities varying less within an individual than
+ between individuals, and were considered 
+\begin_inset Quotes eld
+\end_inset
+
+trait-like
+\begin_inset Quotes erd
+\end_inset
+
+.
+ We
+\end_layout
+
+\begin_layout Standard
+We extracted the first 300 sleeping epochs, and 
+\end_layout
+
+\begin_layout Standard
+We computed spectral power in each of five classical frequency bands.
+ These hypnographic quantities were normalized to unity maximum (
+\begin_inset Formula $x/\max x$
+\end_inset
+
+) before transforming to logarithmic coordinates; outliers were then removed
+ using the kNN distance, and then time-derivatives were estimated with heavy
+ (
+\begin_inset Formula $\lambda=10^{30})$
+\end_inset
+
+ total variation regularization.
+ The edit distance with real penalty was then computed on the estimated
+ 
+\begin_inset Formula $\frac{d}{dt}(\log x)=\dot{x}/x$
+\end_inset
+
+.
+ A distance was thereby assigned between the two recording sessions for
+ each individual, channel, and frequency band.
+ 
+\end_layout
+
+\end_body
+\end_document

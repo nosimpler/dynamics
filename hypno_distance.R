@@ -4,11 +4,69 @@ library(stringdist)
 library(TSdist)
 library(pdc)
 library(dtw)
+library(doParallel)
+library(foreach)
 
-edit_distance_table <- function(h1, h2){
+full_distance_table <- function(h){
+  hc <- full_join(h$baseline, h$followup)
   dtab <- NULL
   row <- NULL
-  for (id1 in IDlist){
+  for (cond in c("baseline", "followup")){
+  for (id1 in IDlist) {
+    
+    seq1 <- hc %>% 
+      filter(ID==id1, COND==cond) %>%
+      arrange(E) %>%
+      select(STAGE_N) %>% 
+      filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
+    
+    for (id2 in IDlist){
+      seq2 <- hc %>%
+        filter(ID==id2, COND==cond) %>%
+        arrange(E) %>%
+        select(STAGE_N) %>% 
+        filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
+      
+      
+      row$ID1 <- id1
+      row$ID2 <- id2
+      #row$D_seqsim <- seq_sim(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300])
+      row$D_erp <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='erp', g=0)
+      row$D_L2 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='euclidean')
+      row$D_L1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='manhattan')
+      #row$D_minkowski <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='minkowski')
+      row$D_ccor <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ccor')
+      row$D_sts <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='sts')
+      row$D_dtw <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='dtw')
+      #row$D_lb.keogh <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], window.size=30, distance='lb.keogh')
+      row$D_edr0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=0)
+      row$D_edr1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=1)
+      row$D_lcss0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=0)
+      row$D_lcss1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=1)
+      row$D_mindist.sax <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], w=10,distance='mindist.sax')
+      row$D_ncd <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ncd')
+      row$D_pdc <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='pdc')
+      #row$D_frechet <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='frechet')
+      row$D_tam <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='tam')
+      
+      #print(id2)
+      row <- as_tibble(row)
+      
+      dtab <- rbind(dtab, row)
+    }
+    print(id1)
+  }
+  }
+  dtab
+}
+fdt <- full_distance_table(h)
+
+# h should be hypno_ds$baseline or hypno_ds$followup
+edit_distance_table <- function(h1,h2){
+
+  dtab <- NULL
+  row <- NULL
+  for (id1 in IDlist) {
     
     seq1 <- h1 %>% 
       filter(ID==id1) %>%
@@ -28,31 +86,34 @@ edit_distance_table <- function(h1, h2){
       row$ID2 <- id2
       #row$D_seqsim <- seq_sim(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300])
       row$D_erp <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='erp', g=0)
-      row$D_L2 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='euclidean')
-      row$D_L1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='manhattan')
+      #row$D_L2 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='euclidean')
+      #row$D_L1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='manhattan')
       #row$D_minkowski <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='minkowski')
-      row$D_ccor <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ccor')
-      row$D_sts <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='sts')
-      row$D_dtw <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='dtw')
-      row$D_lb.keogh <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], window.size=30, distance='lb.keogh')
-      row$D_edr0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=0)
-      row$D_edr1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=1)
-      row$D_lcss0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=0)
-      row$D_lcss1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=1)
-      row$D_mindist.sax <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], w=10,distance='mindist.sax')
+      #row$D_ccor <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ccor')
+      #row$D_sts <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='sts')
+      #row$D_dtw <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='dtw')
+      #row$D_lb.keogh <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], window.size=30, distance='lb.keogh')
+      #row$D_edr0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=0)
+      #row$D_edr1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='edr', epsilon=1)
+      #row$D_lcss0 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=0)
+      #row$D_lcss1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=1)
+      #row$D_mindist.sax <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], w=10,distance='mindist.sax')
       row$D_ncd <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ncd')
       row$D_pdc <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='pdc')
       #row$D_frechet <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='frechet')
-      row$D_tam <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='tam')
+      #row$D_tam <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='tam')
       
-      print(id2)
+      #print(id2)
       row <- as_tibble(row)
 
       dtab <- rbind(dtab, row)
     }
+    print(id1)
   }
   dtab
 }
+#edit_distance_table(hypno_ds$baseline)
+
 
 #####
 # full-night (requires STAGE_N)
@@ -112,7 +173,7 @@ make_distance_table <- function(ds, quantity){
 # compare distributions
 #####
 #dist_diag = mutate(erdt, DIAG=(ID1==ID2))
-#dist_diag_l <- pivot_longer(dist_diag, 3:16, names_to="MEASURE", names_prefix="D_")
+#dist_diag_l_cross <- pivot_longer(crosstable, 3:5, names_to="MEASURE", names_prefix="D_")
 #ddl_summary <- dist_diag_l %>% 
 #  group_by(MEASURE) %>% 
 #  summarize(P=t.test(value[DIAG==TRUE],value[DIAG==FALSE])$p.value)
