@@ -81,7 +81,7 @@ Methods
 \end_layout
 
 \begin_layout Subsection*
-Data handling
+Data analysis
 \end_layout
 
 \begin_layout Standard
@@ -90,29 +90,22 @@ We analyzed the subset (
 \end_inset
 
  of the ChAT dataset for which eight EEG and four reference channels were
- available for both initial and followup recordings, and where recordings
- were not interrupted mid-session according to clinical notes, further excluding
- three children who were not awake at recording onset according to .
- For each distance measure, we compared distributions of intra-individual
+ available for initial and followup recordings, where recordings were uninterrup
+ted according to clinical notes, and excluding three children who were not
+ awake at recording onset for one session.
+ We extracted the first 300 sleeping epochs, and computed fourteen distance
+ measures (Table X).
+ For each distance measure, we compared the distributions of intra-individual
  
 \begin_inset Formula $D_{AA}=d(A_{baseline},A_{followup})$
 \end_inset
 
- to interindividual distances 
+ to inter-individual distances 
 \begin_inset Formula $D_{AB}=d(A_{baseline},B_{followup})$
 \end_inset
 
 .
- 
-\end_layout
-
-\begin_layout Standard
-Those measures for which 
-\begin_inset Formula $D_{AA}<D_{AB}$
-\end_inset
-
- measure hypnographic quantities varying less within an individual than
- between individuals, and were considered 
+ Measures were considered 
 \begin_inset Quotes eld
 \end_inset
 
@@ -120,16 +113,30 @@ trait-like
 \begin_inset Quotes erd
 \end_inset
 
-.
- We
+ if they varied less within an individual than between individuals (
+\begin_inset Formula $D_{AA}<D_{AB}$
+\end_inset
+
+) according to a t-test (Table X).
+ 
+\end_layout
+
+\begin_layout Subsection*
+Hypnograms and other hypnographic quantities
 \end_layout
 
 \begin_layout Standard
-We extracted the first 300 sleeping epochs, and 
+Measures were computed on integer-valued hypnograms and several other hypnograph
+ic quantities as described below:
+\end_layout
+
+\begin_layout Subsubsection*
+Spectral power
 \end_layout
 
 \begin_layout Standard
-We computed spectral power in each of five classical frequency bands.
+We computed spectral power, epochwise, in each of five classical frequency
+ bands.
  These hypnographic quantities were normalized to unity maximum (
 \begin_inset Formula $x/\max x$
 \end_inset
@@ -141,15 +148,24 @@ We computed spectral power in each of five classical frequency bands.
 \end_inset
 
  total variation regularization.
- The edit distance with real penalty was then computed on the estimated
- 
+ Measures were then computed on the estimated 
 \begin_inset Formula $\frac{d}{dt}(\log x)=\dot{x}/x$
 \end_inset
 
 .
- A distance was thereby assigned between the two recording sessions for
- each individual, channel, and frequency band.
  
+\end_layout
+
+\begin_layout Section*
+Results
+\end_layout
+
+\begin_layout Subsection*
+Hypnograms
+\end_layout
+
+\begin_layout Standard
+
 \end_layout
 
 \end_body

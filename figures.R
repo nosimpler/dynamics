@@ -1,7 +1,7 @@
 library(tidyverse)
 library(patchwork)
 library(tvR)
-
+library(GGally)
 theme_rob <- theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
@@ -147,10 +147,17 @@ hypno_compare <- function(h, id1, id2, title='', remove_first_wake=TRUE, epoch_r
 }
 
 # Set of hypnogram pairs from best and/or worst match
-plot_matches <- function(match_table, h){
+plot_matches_hypno <- function(match_table, h){
   match_table_plots <- match_table %>% 
     mutate(plot=list(hypno_compare(h, ID1, ID2, epoch_range=1:300, title=MEASURE)))
   match_table_plots$plot
 }
+
+plot_mds_var <- function(demo, dist_mat, component, var){
+  comp_b <- cmdscale(dist_mat, 3)
+  rvars <- b$demo %>% select(sym(!!var))
+  rvars$mds <- comp_b[,component]
+  ggplot(rvars, aes(x=sym(!!var), y=mds))+stat_summary_bin(bins=10)
+  }
 
 

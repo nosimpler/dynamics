@@ -1,7 +1,9 @@
-#LyX 2.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 474
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 544
 \begin_document
 \begin_header
+\save_transient_properties true
+\origin unavailable
 \textclass article
 \use_default_options true
 \maintain_unincluded_children false
@@ -9,16 +11,18 @@
 \language_package default
 \inputencoding auto
 \fontencoding global
-\font_roman default
-\font_sans default
-\font_typewriter default
-\font_math auto
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
-\font_sf_scale 100
-\font_tt_scale 100
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\use_microtype false
+\use_dash_ligatures true
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -47,6 +51,7 @@
 \suppress_date false
 \justification true
 \use_refstyle 1
+\use_minted 0
 \index Index
 \shortcut idx
 \color #008000
@@ -55,7 +60,10 @@
 \tocdepth 3
 \paragraph_separation indent
 \paragraph_indentation default
-\quotes_language english
+\is_math_indent 0
+\math_numbering_side default
+\quotes_style english
+\dynamic_quotes 0
 \papercolumns 1
 \papersides 1
 \paperpagestyle default
@@ -73,116 +81,87 @@ Methods
 \end_layout
 
 \begin_layout Subsection*
-Data handling
+Data analysis
 \end_layout
 
 \begin_layout Standard
-We analyzed the subset of the ChAT dataset for which eight EEG and four
- reference channels were available for both initial and followup recordings
- (
-\begin_inset Formula $n=405)$
+We analyzed the subset (
+\begin_inset Formula $n=363)$
+\end_inset
+
+ of the ChAT dataset for which eight EEG and four reference channels were
+ available for initial and followup recordings, where recordings were uninterrup
+ted according to clinical notes, and excluding three children who were not
+ awake at recording onset for one session.
+ We extracted the first 300 sleeping epochs, and computed fourteen distance
+ measures (Table X).
+ For each distance measure, we compared the distributions of intra-individual
+ 
+\begin_inset Formula $D_{AA}=d(A_{baseline},A_{followup})$
+\end_inset
+
+ to inter-individual distances 
+\begin_inset Formula $D_{AB}=d(A_{baseline},B_{followup})$
 \end_inset
 
 .
+ Measures were considered 
+\begin_inset Quotes eld
+\end_inset
+
+trait-like
+\begin_inset Quotes erd
+\end_inset
+
+ if they varied less within an individual than between individuals (
+\begin_inset Formula $D_{AA}<D_{AB}$
+\end_inset
+
+) according to a t-test (Table X).
  
 \end_layout
 
+\begin_layout Subsection*
+Hypnograms and other hypnographic quantities
+\end_layout
+
 \begin_layout Standard
-We extracted the first sleep cycle and restricted further analysis to individual
-s whose first cycle durations were similar in length (
-\begin_inset Formula $\pm25$
-\end_inset
+Measures were computed on integer-valued hypnograms and several other hypnograph
+ic quantities as described below:
+\end_layout
 
- minutes; 
-\begin_inset Formula $n=127$
-\end_inset
+\begin_layout Subsubsection*
+Spectral power
+\end_layout
 
-).
- We computed spectral power in each of five classical frequency bands.
+\begin_layout Standard
+We computed spectral power, epochwise, in each of five classical frequency
+ bands.
  These hypnographic quantities were normalized to unity maximum (
 \begin_inset Formula $x/\max x$
 \end_inset
 
-) before transforming to logarithmic coordinates.
- Outliers were then removed using the kNN distance, and then time-derivatives
- were estimated with heavy (
+) before transforming to logarithmic coordinates; outliers were then removed
+ using the kNN distance, and then time-derivatives were estimated with heavy
+ (
 \begin_inset Formula $\lambda=10^{30})$
 \end_inset
 
  total variation regularization.
- The edit distance with real penalty was then computed on the estimated
- 
+ Measures were then computed on the estimated 
 \begin_inset Formula $\frac{d}{dt}(\log x)=\dot{x}/x$
 \end_inset
 
 .
- A distance was thereby assigned between the two recording sessions for
- each individual, channel, and frequency band.
  
 \end_layout
 
-\begin_layout Standard
-For each individual, the 96-dimensional 
-\end_layout
-
-\begin_layout Standard
-For every channel, beta-band power provided the least-variant waveform shape
- (
-\begin_inset Formula $p=6^{-11}$
-\end_inset
-
-; roll the dice on median value excluding totals; Figure 1).
- The 
-\end_layout
-
-\begin_layout Standard
-\begin_inset Float figure
-wide false
-sideways false
-status open
-
-\begin_layout Plain Layout
-\begin_inset Graphics
-	filename /Users/RobBWH/Desktop/2020-03-05/beta_boxplot.pdf
-	scale 50
-
-\end_inset
-
-
-\begin_inset Caption Standard
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
-\begin_layout Plain Layout
-
-\end_layout
-
-\end_inset
-
-
-\end_layout
-
 \begin_layout Section*
-To do
+Results
 \end_layout
 
-\begin_layout Standard
-Disentangle cycles
-\end_layout
-
-\begin_layout Standard
-Similarity matrices
-\end_layout
-
-\begin_layout Standard
-Whole-night edit distance (with stage-dependent penalty?) on staging
+\begin_layout Subsection*
+Hypnograms
 \end_layout
 
 \end_body

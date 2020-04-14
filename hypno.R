@@ -3,11 +3,66 @@
 library(markovchain)
 library(tidyverse)
 
+#####
+# turn N4 to N3
+#####
+N4toN3 <- function(h){
+  h$baseline <- h$baseline %>% 
+    mutate(STAGE_N = recode(STAGE_N, `-4` = -3),
+           STAGE = recode(STAGE, 'NREM4' = 'NREM3'))
+  h$followup <- h$followup %>% 
+    mutate(STAGE_N = recode(STAGE_N, `-4` = -3),
+           STAGE = recode(STAGE, 'NREM4' = 'NREM3'))
+  h
+}
+htest <- N4toN3(h)
+
+# REM=1,other=0
+is_REM <- function(h){
+  h$baseline <- h$baseline %>%
+    mutate(IS_REM = recode(STAGE, 'NREM4' = 0,
+                          'NREM3' = 0,
+                          'NREM2' = 0,
+                          'NREM1' = 0,
+                          'wake' = 0,
+                          'REM' = 1))
+  h$followup <- h$followup %>% 
+    mutate(IS_REM = recode(STAGE, 'NREM4' = 0,
+                          'NREM3' = 0,
+                          'NREM2' = 0,
+                          'NREM1' = 0,
+                          'wake' = 0,
+                          'REM' = 1))
+  h
+}
+
+# sleep=1, other=0
+is_sleep <- function(h){
+  h$baseline <- h$baseline %>%
+    mutate(IS_SLEEP = recode(STAGE, 'NREM4' = 0,
+                          'NREM3' = 0,
+                          'NREM2' = 0,
+                          'NREM1' = 0,
+                          'wake' = 1,
+                          'REM' = 0))
+  h$followup <- h$followup %>% 
+    mutate(IS_SLEEP = recode(STAGE, 'NREM4' = 0,
+                          'NREM3' = 0,
+                          'NREM2' = 0,
+                          'NREM1' = 0,
+                          'wake' = 1,
+                          'REM' = 0))
+  h
+}
+
 # table of pre/post stages
 transition_table <- function(df){
-  n <- nrow(df)
-  post <- df$STAGE[2:n]
-  pre <- df$STAGE[1:(n-1)]
+  df <- df
+  n <- length(df)
+  #print(df)
+  post <- df[2:n]
+  pre <- df[1:(n-1)]
+  #print(post)
   tibble(pre=pre, post=post)
 }
 
@@ -70,32 +125,32 @@ partition_entropy <- function(df){
   block_areas <- summarize(block_lengths, pent = sum(n^2)/sum(n)^2)
 }
 
-##### scripts for chat
-pe1 <- m1 %>% recast() %>%
-  group_by(ID) %>% 
-  summarize(par_ent = t(partition_entropy(STAGE)))
-pe2 <- m2 %>% recast %>%
-  group_by(ID) %>% 
-  summarize(par_ent = t(partition_entropy(STAGE)))
-pe <- left_join(pe1, pe2, by='ID') %>% 
-  drop_na()
-
-hypno_mm1 <- m1 %>% group_by(ID) %>% 
-  arrange(E) %>% 
-  summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
-            tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
-            #stagesum=sum(STAGE_N/sum(PERSISTENT_SLEEP))
-            )
-
-hypno_mm2 <- m2 %>% group_by(ID) %>% 
-  arrange(E) %>% 
-  summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
-            tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
-            #stagesum=sum(STAGE_N)/sum(PERSISTENT_SLEEP)
-            )
-
-hypno <- left_join(hypno_mm1, hypno_mm2, by='ID') %>% 
-  drop_na()
+# ##### scripts for chat
+# pe1 <- m1 %>% recast() %>%
+#   group_by(ID) %>% 
+#   summarize(par_ent = t(partition_entropy(STAGE)))
+# pe2 <- m2 %>% recast %>%
+#   group_by(ID) %>% 
+#   summarize(par_ent = t(partition_entropy(STAGE)))
+# pe <- left_join(pe1, pe2, by='ID') %>% 
+#   drop_na()
+# 
+# hypno_mm1 <- m1 %>% group_by(ID) %>% 
+#   arrange(E) %>% 
+#   summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
+#             tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
+#             #stagesum=sum(STAGE_N/sum(PERSISTENT_SLEEP))
+#             )
+# 
+# hypno_mm2 <- m2 %>% group_by(ID) %>% 
+#   arrange(E) %>% 
+#   summarize(det = det(markovchainFit(STAGE)$estimate@transitionMatrix),
+#             tr = sum(diag(markovchainFit(STAGE)$estimate@transitionMatrix)),
+#             #stagesum=sum(STAGE_N)/sum(PERSISTENT_SLEEP)
+#             )
+# 
+# hypno <- left_join(hypno_mm1, hypno_mm2, by='ID') %>% 
+#   drop_na()
 #cor(hypno$stagesum.x, hypno$stagesum.y)
 #plot(hypno$stagesum.x, hypno$stagesum.y)
 
@@ -124,12 +179,5 @@ parent_distance <- function(pe){
   }
   dxY
 }
-
-fit <- cmdscale(pmat, k=3)
-fit_tib <- tibble(mds1=fit[,1], mds2=fit[,2],mds3=fit[,3])
-summary(lm(fit[,1]~demo$male+demo$tst1+demo$tst2), signif.stars=TRUE)
-summary(lm(fit[,2]~demo$male+demo$tst1+demo$tst2), signif.stars=TRUE)
-summary(lm(fit[,3]~demo$male+demo$tst1+demo$tst2), signif.stars=TRUE)
-ggplot(fit_tib,aes(x=mds1, fill=as.factor(demo$male)))+geom_hist(alpha=0.5)
-ggplot(pe, aes(x=par_ent.x), fill=as.factor(demo$male))+geom_hist(alpha=0.5)
-
+htest <- is_REM(htest)
+hpe <- htest$baseline %>% arrange(ID,E) %>% group_by(ID) %>% summarize(pe=t(partition_entropy(IS_REM))) 

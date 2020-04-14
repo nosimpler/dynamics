@@ -32,7 +32,8 @@ big_dist_matrix <- function(baseline, followup, cross, D){
   mat_tot <- rbind(cbind(bb, bf), cbind(fb, ff))
   mat_tot <- t(mat_tot)
 }
-bdc <- big_dist_matrix(baselinetable, followuptable, crosstable, "D_erp")
+#bdc <- big_dist_matrix(baselinetable, followuptable, crosstable, "D_erp")
+bdc <- erpdist
 #nmf_fit <- nmf(bdc, 3, seed='nndsvd')
 
 #dist_mat <- dist_matrix(dist_diag_l_baseline, 'erp')
@@ -66,12 +67,12 @@ demo3 <- rbind(demo1, demo2)
 #pc <- prcomp(dist_mat)
 fit <- cmdscale(bdc, k=3)
 
-rvars <- htn %>%
+rvars <- htp %>%
                     mutate(
-                      #mds1=fit[,1]
-                      mds1=nmf_fit@fit@H[2,]
+                      mds1=fit[,1]
+                      #mds1=nmf_fit@fit@H[2,]
                            ) %>%
-  mutate(male=as.logical(demo3$male), 
+  mutate(male=as.factor(demo3$male), 
          age=demo3$ageyear_at_meas, 
          race=as.factor(demo3$race3),
          bmiz=demo3$bmiz,
@@ -79,8 +80,8 @@ rvars <- htn %>%
          qol=demo3$pedsql_emotional_score_chld,
          tst=hyp_stats$TST,
          bpm=demo3$bpmavg) %>%
-  mutate_all(~replace(., is.na(.), 0)) %>%
-  filter(abs(mds1) < 40)
+  mutate_all(~replace(., is.na(.), 0)) #%>%
+  #filter(abs(mds1) < 2e-06)
 #idx <- nn(rvars$mds1)[['Location of Outlier']]
 #rvars <- rvars[-idx,]
 hist(rvars$mds1)

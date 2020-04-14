@@ -11,9 +11,9 @@ full_distance_table <- function(h){
   hc <- full_join(h$baseline, h$followup)
   dtab <- NULL
   row <- NULL
-  for (cond in c("baseline", "followup")){
+  
   for (id1 in IDlist) {
-    
+    for (cond in c("baseline", "followup")){
     seq1 <- hc %>% 
       filter(ID==id1, COND==cond) %>%
       arrange(E) %>%
@@ -21,6 +21,7 @@ full_distance_table <- function(h){
       filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
     
     for (id2 in IDlist){
+      for (cond in c("baseline", "followup")){
       seq2 <- hc %>%
         filter(ID==id2, COND==cond) %>%
         arrange(E) %>%
@@ -28,8 +29,8 @@ full_distance_table <- function(h){
         filter(row_number() >= first(which(STAGE_N < 1))) # remove first wake period
       
       
-      row$ID1 <- id1
-      row$ID2 <- id2
+      row$ID1 <- paste(cond, id1, sep='_')
+      row$ID2 <- paste(cond, id2, sep='_')
       #row$D_seqsim <- seq_sim(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300])
       row$D_erp <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='erp', g=0)
       row$D_L2 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='euclidean')
@@ -45,18 +46,19 @@ full_distance_table <- function(h){
       row$D_lcss1 <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='lcss', epsilon=1)
       row$D_mindist.sax <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], w=10,distance='mindist.sax')
       row$D_ncd <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='ncd')
-      row$D_pdc <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='pdc')
+      row$D_pdc <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='pdc', m=3, t=1)
       #row$D_frechet <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='frechet')
       row$D_tam <- TSDistances(seq1$STAGE_N[1:300], seq2$STAGE_N[1:300], distance='tam')
       
       #print(id2)
-      row <- as_tibble(row)
+      row <- row
+      colnames(row) <- paste(cond, id)
       
       dtab <- rbind(dtab, row)
-    }
+    }}
     print(id1)
-  }
-  }
+  }}
+  
   dtab
 }
 fdt <- full_distance_table(h)

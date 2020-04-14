@@ -1,5 +1,6 @@
-# dealing with outliers
+# smoothing, outliers, etc.
 library(OutlierDetection)
+library(tvR)
 # find outliers
 flag_outliers <- function(df){
   df <- df %>% mutate(FLAGGED=0)
@@ -19,3 +20,8 @@ remove_outliers <- function(df){
     return(df[-idx,])
   }
 }
+
+tvd <- function(x) denoise1(x, lambda=1e30)
+xdx_all <- function(x) apply(x,1, xdx)
+normalize <- function(x) x/max(x)
+xdx <- function(x) tvd(log10(normalize(x)))

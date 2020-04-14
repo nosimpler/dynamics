@@ -4,13 +4,13 @@ library(tidyverse)
 `%notin%` <- Negate(`%in%`)
 
 # demographic info
-demofile <- '~/dyn/data/chat/chat-baseline.csv'
+demofile <- '~/dyn/data/chat/tab/chat-baseline.csv'
 demo <- read_csv(demofile)
 
-
+# build chat dataset object
 # update this function to include/exclude participants based on 
 # demographic or other info
-filter_dataset <- function(demo, baseline_data, followup_data){
+compile_dataset <- function(demo, baseline_data, followup_data){
   dataset <- list()
   EXCLUDE <- c(300058,300368,300668) # first epoch isn't wake
   IDwholenight <- wholenight_only(demo)$nsrrid
@@ -32,92 +32,81 @@ filter_dataset <- function(demo, baseline_data, followup_data){
 
 #hypno-epochs
 load_hypno <- function(){
-  hypno_baseline <- read_table2('~/dyn/data/chat/HYPNO-E.txt', guess_max = 1000000) %>%
+  hypno_baseline <- read_table2('~/dyn/data/chat/tab/HYPNO-E.txt', guess_max = 1000000) %>%
     filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='baseline')
 
-  hypno_followup <- read_table2('~/dyn/data/chat/HYPNO-E.txt', guess_max = 1000000) %>%
+  hypno_followup <- read_table2('~/dyn/data/chat/tab/HYPNO-E.txt', guess_max = 1000000) %>%
     filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='followup')
   
-  hypno_baseline_stats <-  read_table2('~/dyn/data/chat/HYPNO.txt', guess_max = 1000000) %>%
+  hypno_baseline_stats <-  read_table2('~/dyn/data/chat/tab/HYPNO.txt', guess_max = 1000000) %>%
     filter(!grepl('nonrandomized', ID)) %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='baseline')
   
-  hypno_followup_stats <-  read_table2('~/dyn/data/chat/HYPNO.txt', guess_max = 1000000) %>%
+  hypno_followup_stats <-  read_table2('~/dyn/data/chat/tab/HYPNO.txt', guess_max = 1000000) %>%
     filter(!grepl('nonrandomized', ID)) %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='followup')
   
-  hypno_ds <- filter_dataset(demo, hypno_baseline, hypno_followup)
+  hypno_ds <- compile_dataset(demo, hypno_baseline, hypno_followup)
   hypno_ds$followup_stats <- hypno_followup_stats %>% 
     filter(ID %in% hypno_ds$IDs)
   hypno_ds$baseline_stats <- hypno_baseline_stats %>% 
     filter(ID %in% hypno_ds$IDs)
   hypno_ds
 }
-# need to be more delicate about dropping NA (due to NREM2-specific variables)
-# this part will change if different variables are used
-# m1 <- m1c %>% recast() %>% 
-#   select(3:98,STAGE, ID, CYCLE,E) %>% 
-#   drop_na()
-# 
-# m2 <- m2c %>% recast() %>% 
-#   select(3:98,STAGE, ID, CYCLE,E) %>% 
-#   drop_na()
 
-
-
-# make sure all stages are in the cycle
-
-# m1stages <- list()
-# m2stages <- list()
-# for (id in flatten(IDlist)){
-#   m1stages[[id]] <- m1 %>% filter(ID==id, CYCLE==1) %>% select(STAGE) %>% unique()
-#   m2stages[[id]] <- m2 %>% filter(ID==id,CYCLE==1) %>% select(STAGE) %>% unique()
-# }
-
-
-# concatenate sessions for one variable
-catses <- function(df1,df2, var){
-  df1 <- select(df1, E, ID, !!sym(var))
-  df2 <- select(df2, E, ID, !!sym(var))
-  left_join(df1, df2, by='ID')
+# band-epoch-channel
+load_bands <- function(){
+  bands_baseline <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.txt', guess_max = 1000000) %>%
+    filter(!grepl('nonrandomized', ID)) %>% select(ID, E, B, CH, PSD, RELPSD) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='baseline')
+  
+  bands_followup <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.txt', guess_max = 1000000) %>%
+    filter(!grepl('nonrandomized', ID)) %>% select(ID, E, B, CH, PSD, RELPSD) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='followup')
+  bands <- compile_dataset(demo, bands_baseline, bands_followup)
+  
 }
 
-
-#hypno <- left_join(hypno_mm1, hypno_mm2, by='ID') %>% 
-  #drop_na()
-
-# gather channels and bands
-pivot_l <- function(df, sep='_'){
-  pivot_longer(df, 3:98, names_to=c('B', 'CH'), names_sep=sep)
+# band-epoch-channel
+load_band_ch <- function(band, ch){
+  bands_baseline <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.txt', guess_max = 1000000) %>%
+    filter(B==sym(!!band), CH==sym(!!ch), !grepl('nonrandomized', ID)) %>% select(ID, E, PSD) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='baseline')
+  
+  bands_followup <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.txt', guess_max = 1000000) %>%
+    filter(B==sym(!!band), CH==sym(!!ch), !grepl('nonrandomized', ID)) %>% select(ID, E, PSD) %>%
+    separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
+    filter(COND=='followup')
+  bands <- compile_dataset(demo, bands_baseline, bands_followup)
+  bands$ch <- ch
+  bands$band <- band
+  bands
 }
 
-pivot_dist <- function(df){
-  pivot_longer(df, 1:96, names_to=c('B','CH'), names_sep='_')
+join_tables <- function(df1, df2, var){
+  df2 <- select(df2, 'ID', 'E', sym(!!var))
+  left_join(df1, df2, by=c('ID', 'E'))
 }
 
-# ID
-recast <- function(df){
-  df <- mutate(df, ID=str_sub(ID, -6))
+# needs hypno table h
+append_stage_info <- function(b,h){
+  b$baseline <- join_tables(b$baseline,h$baseline,'STAGE_N')
+  b$followup <- join_tables(b$followup, h$followup, 'STAGE_N')
+  b
 }
 
-# note: some data are off by 10^3
-rescale <- function(df){
-  for (ID in unique(df$IDs)){
-    flag_outliers() %>% max()
+filterchb <- function(b, ch, band){
+  b$baseline <- filter(b$baseline, CH==sym(!!ch), B==sym(!!band))
+  b$followup <- filter(b$followup, CH==sym(!!ch), B==sym(!!band))
+  b
   }
-}
-
-wholenight_only <- function(demo){
-  demo %>% 
-    filter(recbeaw==0,losbeg==0,losoth==0)
-}
-
-
-
 
