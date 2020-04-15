@@ -28,21 +28,22 @@ source(ps('regression.R'))
 #m <- regress_on_demo_and_standard(b,h)
 #print(m)
 #plot_mds_var(b$demo, b$baseline_dist, 1, 'cog')
-#measures <- c('pdc', 'erp', 'ncd', 'klb', )
-# distances <- NULL
-# bands <- c("SLOW", "DELTA", "THETA", "ALPHA", "SIGMA", "BETA", "GAMMA")
-#   for (ch in unique(ball$baseline$CH)){
-#     for (band in bands){
-#       print(ch)
-#       print(band)
-#       dist_mat <- as_tibble(get_distances(ball, ch, band, 'erp', ids=b$IDs))
-#       dist_mat$CH <- ch
-#       dist_mat$B <- band
-#       dist_mat$MEAS <- 'erp'
-#       distances <- rbind(distances, dist_mat)
-#     }
-#   }
-
+measures <- c('pdc', 'erp', 'ncd')
+distances <- NULL
+bands <- c("SLOW", "DELTA", "THETA", "ALPHA", "SIGMA", "BETA", "GAMMA", "TOTAL")
+for (measure in measures){
+  for (ch in unique(ball$baseline$CH)){
+    for (band in bands){
+      print(ch)
+      print(band)
+      dist_mat <- as_tibble(get_distances(ball, ch, band, measure, ids=b$IDs))
+      dist_mat$CH <- ch
+      dist_mat$B <- band
+      dist_mat$MEAS <- measure
+      distances <- rbind(distances, dist_mat)
+    }
+  }
+}
 component <- 2
 mds <- function(x) as_tibble(cmdscale(as.matrix(x[,1:682]), 3)[,1])
 mds_baseline <- function(x) {
@@ -115,26 +116,35 @@ rvars_erp_followup <- left_join(followup_erp, meas) %>%
   select(-nsrrid)
 
 rvars_pdc_baseline <- left_join(baseline_pdc, meas) %>%
-  select(-nsrrid)
+  select(-nsrrid) 
 
 rvars_erp_baseline <- left_join(baseline_erp, meas) %>%
-  select(-nsrrid)
+  select(-nsrrid) 
 
 sigs_pdc_baseline <- rvars_pdc_baseline %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=.x))) %>%
-  filter(p.value < 0.05)
+  group_modify(~tidy(lm(value ~ ., data=.x))) %>% 
+  add_column(MEAS='pdc', COND='baseline')
 
 sigs_pdc_followup <- rvars_pdc_followup %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=.x))) %>%
-  filter(p.value < 0.05)
+  group_modify(~tidy(lm(value ~ ., data=.x))) %>% 
+  add_column(MEAS='pdc', COND='followup')
 
 sigs_erp_baseline <- rvars_erp_baseline %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=.x))) %>%
-  filter(p.value < 0.05)
+  group_modify(~tidy(lm(value ~ ., data=.x)))%>% 
+  add_column(MEAS='erp', COND='baseline')
 
 sigs_erp_followup <- rvars_erp_followup %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=.x))) %>%
-  filter(p.value < 0.05)
+  group_modify(~tidy(lm(value ~ ., data=.x))) %>% 
+  add_column(MEAS='erp', COND='followup')
 
-print(inner_join(sigs_pdc_baseline, sigs_pdc_followup, by=c('B','CH','term')))
-print(inner_join(sigs_erp_baseline, sigs_erp_followup, by=c('B','CH','term')))
+sigs <- rbind(sigs_erp_baseline, 
+              sigs_erp_followup, 
+              sigs_pdc_baseline, 
+              sigs_pdc_followup)
+
+rvars <- rbind(add_column(rvars_erp_followup,MEAS='erp', COND='followup'),
+               add_column(rvars_erp_baseline,MEAS='erp', COND='baseline'),
+               add_column(rvars_pdc_followup,MEAS='pdc', COND='followup'),
+               add_column(rvars_pdc_baseline,MEAS='pdc', COND='baseline')
+               )
+
