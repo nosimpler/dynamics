@@ -21,7 +21,10 @@ remove_outliers <- function(df){
   }
 }
 
-tvd <- function(x) denoise1(x, lambda=1e30)
-xdx_all <- function(x) apply(x,1, xdx)
+tvr <- function(x) denoise1(x, lambda=1e30)
+tvrd <- function(x) denoise1(diff(x), lambda=1e30)
+xdx_all <- function(x) apply(x,1, xdx-min(xdx))
 normalize <- function(x) x/max(x)
-xdx <- function(x) tvd(log10(normalize(x)))
+xdx <- function(x) tvrd(log10(normalize(x)))
+rx <- function(x) tvr(log10(normalize(x)))
+rx_all <- function(x) apply(x, 1, rx)

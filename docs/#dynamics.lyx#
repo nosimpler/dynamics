@@ -135,7 +135,7 @@ Spectral power
 \end_layout
 
 \begin_layout Standard
-We computed spectral power, epochwise, in each of five classical frequency
+We computed spectral power, epochwise, in each of seven classical frequency
  bands.
  These hypnographic quantities were normalized to unity maximum (
 \begin_inset Formula $x/\max x$
@@ -162,10 +162,6 @@ Results
 
 \begin_layout Subsection*
 Hypnograms
-\end_layout
-
-\begin_layout Standard
-
 \end_layout
 
 \end_body

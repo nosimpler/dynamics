@@ -69,8 +69,8 @@ followup_submatrix <- function(dist_mat) {
 }
 
 get_distances <- function(df,ch, band, measure, ids){
-  tsm <- build_ts_matrix_spec(df, band, ch, var='PSD')
-  tsmd <- xdx_all(tsm)
+  tsm <- build_ts_matrix_spec(df, band, ch, var='RELPSD')
+  tsmd <- rx_all(tsm)
   if (measure=='pdc'){
     dist_mat <- as.matrix(TSDatabaseDistances(t(tsmd), 'pdc'))
   }

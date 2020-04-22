@@ -13,11 +13,11 @@ demo <- read_csv(demofile)
 compile_dataset <- function(demo, baseline_data, followup_data){
   dataset <- list()
   EXCLUDE <- c(300058,300368,300668) # first epoch isn't wake
-  IDwholenight <- wholenight_only(demo)$nsrrid
+  #IDwholenight <- wholenight_only(demo)$nsrrid
   IDb <- unique(baseline_data$ID)
   IDf <- unique(followup_data$ID)
   # include participants with whole-night recording for baseline/followup
-  INCLUDE <- intersect(intersect(IDwholenight, IDb), IDf)
+  INCLUDE <- intersect(IDb, IDf)
   dataset$baseline <- baseline_data %>%
     filter(ID %in% INCLUDE, ID %notin% EXCLUDE)
   dataset$followup <- followup_data %>%
