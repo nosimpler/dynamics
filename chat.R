@@ -5,6 +5,7 @@ library(tidyverse)
 
 # demographic info
 demofile <- '~/dyn/data/chat/tab/chat-baseline.csv'
+
 demo <- read_csv(demofile)
 
 # build chat dataset object
@@ -33,12 +34,12 @@ compile_dataset <- function(demo, baseline_data, followup_data){
 #hypno-epochs
 load_hypno <- function(){
   hypno_baseline <- read_table2('~/dyn/data/chat/tab/HYPNO-E.txt', guess_max = 1000000) %>%
-    filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
+    filter(!is.na(STAGE), !grepl('nonrandomized', ID))  %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='baseline')
 
   hypno_followup <- read_table2('~/dyn/data/chat/tab/HYPNO-E.txt', guess_max = 1000000) %>%
-    filter(!is.na(STAGE), !grepl('nonrandomized', ID)) %>% select(ID, E, STAGE, STAGE_N) %>%
+    filter(!is.na(STAGE), !grepl('nonrandomized', ID))  %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-') %>%
     filter(COND=='followup')
   
@@ -99,8 +100,8 @@ join_tables <- function(df1, df2, var){
 
 # needs hypno table h
 append_stage_info <- function(b,h){
-  b$baseline <- join_tables(b$baseline,h$baseline,'STAGE_N')
-  b$followup <- join_tables(b$followup, h$followup, 'STAGE_N')
+  b$baseline <- left_join(b$baseline,h$baseline, by=c('ID','E'))
+  b$followup <- left_join(b$followup,h$followup, by=c('ID','E'))
   b
 }
 
@@ -109,4 +110,11 @@ filterchb <- function(b, ch, band){
   b$followup <- filter(b$followup, CH==sym(!!ch), B==sym(!!band))
   b
   }
+
+write_bsl_flp <- function(){
+  write_tsv(ball$baseline, '~/dyn/rdata/baseline.tsv')
+  write_tsv(ball$followup, '~/dyn/rdata/followup.tsv')
+}
+
+
 

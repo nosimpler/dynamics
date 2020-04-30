@@ -14,37 +14,42 @@ source(ps('distances0.2.R'))
 source(ps('chat.R'))
 source(ps('cleandata.R'))
 source(ps('regression.R'))
-# h <- load_hypno()
-# ball <- load_bands() %>% append_stage_info(., h)
-measures <- c('erp')
-distances2 <- NULL
-bands <- c("SLOW", "DELTA", "THETA", "ALPHA", "SIGMA", "BETA", "GAMMA")#, "TOTAL")
-for (measure in measures){
-  for (ch in unique(ball$baseline$CH)){
-    for (band in bands){
-      print(ch)
-      print(band)
-      dist_mat <- as_tibble(get_distances(ball, ch, band, measure, ids=b$IDs))
-      dist_mat$CH <- ch
-      dist_mat$B <- band
-      dist_mat$MEAS <- measure
-      distances2 <- rbind(distances2, dist_mat)
-    }
-  }
-}
+h <- load_hypno()
+ball <- load_bands() %>% append_stage_info(., h)
+# measures <- c('erp')
+# distances2 <- NULL
+# bands <- c("SLOW", "DELTA", "THETA", "ALPHA", "SIGMA", "BETA", "GAMMA")#, "TOTAL")
+# for (measure in measures){
+#   for (ch in unique(ball$baseline$CH)){
+#     for (band in bands){
+#       print(ch)
+#       print(band)
+#       dist_mat <- as_tibble(get_distances(ball, ch, band, measure, ids=b$IDs))
+#       dist_mat$CH <- ch
+#       dist_mat$B <- band
+#       dist_mat$MEAS <- measure
+#       distances2 <- rbind(distances2, dist_mat)
+#     }
+#   }
+# }
 # have to rewrite for n/2 rather than 341
+load("~/dyn/rdata/distances_erp_first300.Rdata")
+
 n <- dim(dist_mat)[2]-3
-mds <- function(x) as_tibble(cmdscale(as.matrix(x[,1:n]), 3)[,1])
 mds_baseline <- function(x) {
-   x_new <- as_tibble(cmdscale(as.matrix(x[1:(n/2),1:(n/2)]), 3)[,1])
+   x_new <- as_tibble(cmdscale(as.matrix(x[1:(n/2),1:(n/2)]), 3)[,3]) %>%
+     rm_outliers()
    rownames(x_new) <- ball$demo$nsrrid
    rownames_to_column(x_new,var='nsrrid')
+   
 }
 
 mds_followup <- function(x) {
-  x_new <- as_tibble(cmdscale(as.matrix(x[(n/2+1):n,(n/2+1):n]), 3)[,1])
+  x_new <- as_tibble(cmdscale(as.matrix(x[(n/2+1):n,(n/2+1):n]), 3)[,3]) %>%
+    rm_outliers()
   rownames(x_new) <- ball$demo$nsrrid
   rownames_to_column(x_new,var='nsrrid')
+  
 }
 
 nmf_baseline <- function(x) {
@@ -60,6 +65,10 @@ nmf_followup <- function(x) {
     rename(value=V1)
   rownames(x_new) <- ball$demo$nsrrid
   rownames_to_column(x_new,var='nsrrid')
+}
+
+dist_diagonal <- function(x){
+  x_new <- as_tibble(diag(as.matrix(x[1:(n/2), (n/2+1):n])))
 }
 
 #distance_t1 <- distances %>% group_by(B, CH) %>% 
@@ -90,89 +99,119 @@ standard_measures <- c(
   'WASO'
 )
 
+other_comparisons <- c('cog',
+  'ess',
+  'bmiz',
+  'omahi3',
+  'bpmavg',
+  'avgsat',
+  'ai_all')
+
+comparators <- c(standard_measures, other_comparisons)
+
+
 
 h$baseline_stats <- filter(h$baseline_stats, ID %in% unique(ball$demo$nsrrid))
-meas <- h$baseline_stats %>% select(standard_measures)
-meas$age <- ball$demo$ageyear_at_meas
-meas$male <- ball$demo$male
-meas$cog <- ball$demo$bri13b
-meas$ess <- ball$demo$epworthscore_adult
-meas$race <- as.factor(ball$demo$race3)
-meas$bmiz <- ball$demo$bmiz
-meas$nsrrid <- as.character(ball$demo$nsrrid)
-  
+h$followup_stats <- filter(h$followup_stats, ID %in% unique(ball$demo$nsrrid))
+meas_bsl <- h$baseline_stats %>% select(standard_measures)
+meas_bsl$age <- ball$demo$ageyear_at_meas
+meas_bsl$male <- ball$demo$male
+meas_bsl$cog <- ball$demo$bri13b
+meas_bsl$ess <- ball$demo$epworthscore_adult
+meas_bsl$race <- as.factor(ball$demo$race3)
+meas_bsl$bmiz <- ball$demo$bmiz
+meas_bsl$bpmavg <- ball$demo$bpmavg
+meas_bsl$omahi3 <- ball$demo$omahi3
+meas_bsl$avgsat <- ball$demo$avgsat
+meas_bsl$ai_all <- ball$demo$ai_all
+meas_bsl$nsrrid <- as.character(ball$demo$nsrrid)
+
+meas_flp <- h$followup_stats %>% select(standard_measures)
+meas_flp$age <- ball$demo$ageyear_at_meas
+meas_flp$male <- ball$demo$male
+meas_flp$cog <- ball$demo$bri13b
+meas_flp$ess <- ball$demo$epworthscore_adult
+meas_flp$race <- as.factor(ball$demo$race3)
+meas_flp$bmiz <- ball$demo$bmiz
+meas_flp$nsrrid <- as.character(ball$demo$nsrrid)
+meas_flp$omahi3 <- ball$demo$omahi3
+meas_flp$bpmavg <- ball$demo$bpmavg
+meas_flp$avgsat <- ball$demo$avgsat
+meas_flp$ai_all <- ball$demo$ai_all
+
+
+pdc_retest <- distances %>% group_by(B,CH) %>%
+  group_modify(~dist_diagonal(.x))
+erp_retest <- distances2 %>% group_by(B,CH) %>%
+  group_modify(~dist_diagonal(.x))
+
+retest <- tibble(B=pdc_retest$B, CH=pdc_retest$CH, pdc=pdc_retest$value, erp=erp_retest$value)
+
+retest_corr <- retest %>% group_by(CH,B) %>%
+  group_modify(~tidy(cor.test(x=.$pdc,y=.$erp))) %>%
+  select(CH, B, estimate, statistic, p.value) 
+
+
+
 baseline_erp <- distances2 %>% group_by(B, CH) %>% 
-  group_modify(~mds_baseline(.x)) %>%
+  group_modify(~mds_baseline(.x))
   
 
 followup_erp <- distances2 %>% group_by(B, CH) %>% 
   group_modify(~mds_followup(.x)) 
          
-#baseline_pdc <- distances %>% group_by(B, CH) %>% 
-# group_modify(~mds_baseline(.x)) 
+baseline_pdc <- distances %>% group_by(B, CH) %>% 
+ group_modify(~mds_baseline(.x)) 
 
-#followup_pdc <- distances %>% group_by(B, CH) %>% 
-#  group_modify(~mds_followup(.x)) 
+followup_pdc <- distances %>% group_by(B, CH) %>% 
+  group_modify(~mds_followup(.x)) 
 
-#baseline_pdc_nmf <- distances %>% group_by(B,CH) %>%
-#  group_modify(~nmf_baseline(.x))
 
-#followup_pdc_nmf <- distances %>% group_by(B,CH) %>%
-#  group_modify(~nmf_followup(.x))
+rvars_pdc_followup <- left_join(followup_pdc, meas_flp)
 
-#rvars_pdc_followup <- left_join(followup_pdc, meas)
+rvars_erp_followup <- left_join(followup_erp, meas_flp) 
 
-rvars_erp_followup <- left_join(followup_erp, meas) 
+rvars_pdc_baseline <- left_join(baseline_pdc, meas_bsl) 
 
-#rvars_pdc_baseline <- left_join(baseline_pdc, meas) 
-
-rvars_erp_baseline <- left_join(baseline_erp, meas) 
-
-#rvars_pdc_baseline_nmf <- left_join(baseline_pdc_nmf, meas)
-#rvars_pdc_followup_nmf <- left_join(followup_pdc_nmf, meas)
-#sigs_pdc_baseline <- rvars_pdc_baseline %>% group_by(CH, B) %>%
-#  group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid)))) %>%
-#  add_column(MEAS='pdc', COND='baseline')
-
-#sigs_pdc_followup <- rvars_pdc_followup %>% group_by(CH, B) %>%
-# group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid)))) %>%
-#  add_column(MEAS='pdc', COND='followup')
-
-sigs_erp_baseline <- rvars_erp_baseline %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid))))%>%
-  add_column(MEAS='erp', COND='baseline')
-
-sigs_erp_followup <- rvars_erp_followup %>% group_by(CH, B) %>%
-  group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid)))) %>%
-  add_column(MEAS='erp', COND='followup')
-
-#sigs_pdc_baseline_nmf <- rvars_pdc_baseline_nmf %>% group_by(CH, B) %>%
-#  group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid)))) %>% 
-#  add_column(MEAS='pdc', COND='baseline')
-
-#sigs_pdc_followup_nmf <- rvars_pdc_followup_nmf %>% group_by(CH, B) %>%
-#  group_modify(~tidy(lm(value ~ ., data=select(.x,-nsrrid)))) %>% 
-#  add_column(MEAS='pdc', COND='followup')
-
-sigs <- rbind(sigs_erp_baseline, 
-              sigs_erp_followup) 
-              #sigs_pdc_baseline, 
-              #sigs_pdc_followup)
+rvars_erp_baseline <- left_join(baseline_erp, meas_bsl) 
 
 rvars <- rbind(add_column(rvars_erp_followup,MEAS='erp', COND='followup'),
-               add_column(rvars_erp_baseline,MEAS='erp', COND='baseline')
-               #add_column(rvars_pdc_followup,MEAS='pdc', COND='followup'),
-               #add_column(rvars_pdc_baseline,MEAS='pdc', COND='baseline')
+               add_column(rvars_erp_baseline,MEAS='erp', COND='baseline'),
+               add_column(rvars_pdc_followup,MEAS='pdc', COND='followup'),
+               add_column(rvars_pdc_baseline,MEAS='pdc', COND='baseline')
                )
 
+rvars <- pivot_longer(rvars, 
+                           cols=comparators, 
+                           names_to='var', 
+                           values_to='rhs') %>% 
+  rename(lhs=value)
 
-  rvars %>%
-    pivot_wider(names_from=COND, values_from=value) %>%
-    select(baseline, followup) %>%
-    group_modify(~correlate(.x)) %>%
-    filter(rowname=='baseline', MEAS=='pdc') %>%
-    select(-baseline, -rowname) %>%
-    rename(corr=followup) %>%
-    ggplot(aes(x=CH, y=B,size=abs(corr), color=corr)) +
-    geom_point()+scale_color_distiller(palette="RdYlBu")+
-    theme_minimal()
+sigs <- rvars %>% group_by(CH, B, MEAS, COND, var) %>%
+  group_modify(~tidy(lm(lhs ~ ., data=select(.,lhs,rhs,age,male,race, -nsrrid))))
+
+# pdc/erp correlation
+mds_corr <- rvars %>% group_by(CH,B,COND,var) %>%
+  pivot_wider(names_from=MEAS, values_from=lhs) %>%
+  filter(var=='ai_all') %>% #doesn't matter which one
+  group_modify(~tidy(cor.test(x=.$erp,y=.$pdc))) %>%
+  select(CH, B, COND, estimate, statistic, p.value) 
+
+ggplot(mds_corr, aes(x=CH, y=B,color=estimate, size=abs(estimate)))+
+  geom_point()+
+  facet_wrap(~COND)+
+  scale_color_distiller(palette='RdYlBu')
+
+# test/retest correlation
+retest_corr <- rvars %>% group_by(CH,B,MEAS,var) %>%
+  pivot_wider(names_from=COND, values_from=lhs) %>%
+  filter(var=='ai_all') %>% #doesn't matter which one
+  group_modify(~tidy(cor.test(x=.$baseline,y=.$followup))) %>%
+  select(CH, B, MEAS, estimate, statistic, p.value) 
+
+ggplot(retest_corr, aes(x=CH, y=B,color=estimate, size=abs(estimate)))+
+  geom_point()+
+  facet_wrap(~MEAS)+
+  scale_color_distiller(palette='RdYlBu')
+
+  summarize(mds_pos, corr=correlate(.x, x=pdc, y=erp))

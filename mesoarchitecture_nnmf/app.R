@@ -17,11 +17,13 @@ ui <- fluidPage(
     
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
-        sidebarPanel(),
+        sidebarPanel(
+            plotOutput("nnmfPlot", click='nnmf_click')
+        ),
         
         # Show a plot of the generated distribution
         mainPanel(
-            plotOutput("nnmfPlot", click='nnmf_click'),
+            plotOutput('componentPlot'),
             plotOutput("hyPlot_nnmf")
         )
     )
@@ -33,20 +35,27 @@ server <- function(input, output) {
     b <- 'SLOW'
     output$nnmfPlot <- renderPlot({
         # generate bins based on input$bins from ui.R
-        
-        ggplot(nn, aes(x=V1.x, y=V1.y))+geom_point()
+        ggplot(nnH, aes(x=V2.x, y=V2.y))+geom_point()
     })
+    
+    output$componentPlot <- renderPlot({
+        ggplot(nnW, aes(x=E, y=V2.y))+geom_line(color='black')+
+        geom_line(aes(x=E,y=V2.x), color='grey')
+    })
+    
     output$hyPlot_nnmf <- renderPlot({
-        nP <- nearPoints(nn, input$nnmf_click, threshold=10, maxpoints=1)
+        nP <- nearPoints(nnH, input$nnmf_click, threshold=10, maxpoints=1)
         print(typeof(as.numeric(nP$nsrrid)))
         id <- as.numeric(nP$nsrrid)
-        data_baseline <- tibble(E=1:300, 
-                                RELPSD=(-tsm[,1:379])[,id])
-        data_followup <- tibble(E=1:300, 
-                                RELPSD=(-tsm[,380:758])[,id])
+        data_baseline <- tibble(E=1:l, 
+                                RELPSD=(tsm[,1:379])[,id])
+        data_followup <- tibble(E=1:l, 
+                                RELPSD=(tsm[,380:758])[,id])
         p1 <- ggplot(data_baseline,aes(x=E, y=RELPSD))+geom_point()+
-            ggtitle(ball$demo$nsrrid[as.numeric(nP$nsrrid)])
-        p2 <- ggplot(data_followup, aes(x=E, y=RELPSD))+geom_point()
+            ggtitle(ball$demo$nsrrid[as.numeric(nP$nsrrid)])#+
+            #ylim(0,0.01)
+        p2 <- ggplot(data_followup, aes(x=E, y=RELPSD))+geom_point()#+
+            #ylim(0,0.01)
         p1/p2
     })
 }
