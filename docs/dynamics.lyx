@@ -77,83 +77,244 @@
 \begin_body
 
 \begin_layout Section*
+Introduction
+\end_layout
+
+\begin_layout Standard
+The dynamical structure of sleep can be viewed at several nested timescales
+ 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "olbrich_multiple_2011"
+literal "false"
+
+\end_inset
+
+: Circadian rhythms and sleep homeostatic processes act on scales of approximate
+ly 24 hours, while ultradian rhythms govern the sleep cycles, whose durations
+ vary from approximately 45 minutes in elderly patients with dementia to
+ about two hours in children 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "feinberg_systematic_1979,feinberg_changes_1974"
+literal "false"
+
+\end_inset
+
+.
+ Below this, the individual bouts of NREM2, NREM3 and REM sleep that comprise
+ a sleep cycle have a scale of minutes to tens of minutes [ref.].
+ The classical epoch of 20 or 30 seconds corresponds approximately to the
+ timescale of stage transitions [ref.], and classical microstructural events
+ (individual slow waves, delta oscillations, K-complexes, spindles, theta
+ bursts) are on the order of several seconds or less [refs.].
+ 
+\end_layout
+
+\begin_layout Standard
+While quantitative models of brain dynamics at the ultradian timescale are
+ few (but see 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "merica_state_2004"
+literal "false"
+
+\end_inset
+
+), a number of statistical models have been proposed to delineate 
+\emph on
+micro
+\emph default
+structural events during sleep, among them autoregressive (AR) models 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "pardey_new_1996,olbrich_dynamics_2003"
+literal "false"
+
+\end_inset
+
+.
+ We shall propose here to extend the use of AR models to quantify ultradian
+ dynamics, viewing spectral power time-series as a function of epoch.
+\end_layout
+
+\begin_layout Standard
+AR models are those of the form
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+X_{t+T}=\sigma+\sum_{n=0}^{N}a_{n}X_{t-nT}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+with 
+\begin_inset Formula $X$
+\end_inset
+
+ a sample, 
+\begin_inset Formula $T$
+\end_inset
+
+ the inverse sampling rate, and 
+\begin_inset Formula $\sigma$
+\end_inset
+
+ a Gaussian noise term.
+ A number of extended AR models vary on this basic theme, with moving-average
+ (ARMA) and vectorial (VAR) models 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "cohen_eeg_1996"
+literal "false"
+
+\end_inset
+
+ being commonplace.
+ While most often used for forecasting [refs.], models in the AR family yield
+ a low-dimensional representation of the data in their coefficients (the
+ 
+\begin_inset Formula $a_{n}$
+\end_inset
+
+ in so-called 
+\begin_inset Quotes eld
+\end_inset
+
+vanilla
+\begin_inset Quotes erd
+\end_inset
+
+ AR).
+ This makes the coefficients particularly useful as regression and classificatio
+n variables, and indeed autoregressive coefficients have been used as features
+ for neural-network based classification of sleep stage 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "pardey_new_1996"
+literal "false"
+
+\end_inset
+
+ and as direct macroarchitectural markers 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "olbrich_dynamics_2003"
+literal "false"
+
+\end_inset
+
+.
+ However, AR models typically require a time-series to be stationary.
+ In 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "olbrich_dynamics_2003"
+literal "false"
+
+\end_inset
+
+, it was argued that the stationarity assumption holds in sleep EEG for
+ one-second time windows, i.e.
+ at the event timescale, but does not hold at longer scales.
+ 
+\end_layout
+
+\begin_layout Standard
+With that in mind, the so-called ARIMA (where 
+\emph on
+I
+\emph default
+ stands for 
+\emph on
+integrated)
+\emph default
+ models, which are simply ARMA models on a time-differenced signal, can
+ ameliorate the stationarity problem.
+ The ARIMA model family has been applied to electroencephalography for detecting
+ epilepsy 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "mohamadi_arima-garch_2017"
+literal "false"
+
+\end_inset
+
+, but to our knowledge it has not been applied to sleep data.
+ 
+\end_layout
+
+\begin_layout Standard
+Because AR coefficients are further tied to spectral estimates by the Wiener-Khi
+nchin theorem, our approach here will be twofold: First, we will examine
+ the use of ARIMA coefficients to characterize long-timescale (above-epoch
+ scale) spectral power time-series during sleep.
+ Second, we will use matrix and tensor factorization methods to extract
+ structure from AR power spectra in the multichannel/multiband context in
+ populations, [[comparing AR power spectra with other spectral models?]].
+ We note that nonnegative matrix factorization has recently been applied
+ to sleep data 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "liu_time-series_2019"
+literal "false"
+
+\end_inset
+
+ with some success, and tensor factorization has been applied to discriminate
+ sleep patterns in Alzheimer's disease 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "kim_discriminative_2019,de_wel_decomposition_2019"
+literal "false"
+
+\end_inset
+
+.
+ ]]
+\end_layout
+
+\begin_layout Section*
 Methods
 \end_layout
 
 \begin_layout Subsection*
-Data analysis
+Data preprocessing
 \end_layout
 
 \begin_layout Standard
 We analyzed the subset (
-\begin_inset Formula $n=363)$
+\begin_inset Formula $n=382)$
 \end_inset
 
- of the ChAT dataset for which eight EEG and four reference channels were
- available for initial and followup recordings, where recordings were uninterrup
-ted according to clinical notes, and excluding three children who were not
- awake at recording onset for one session.
- We extracted the first 300 sleeping epochs, and computed fourteen distance
- measures (Table X).
- For each distance measure, we compared the distributions of intra-individual
+ of the ChAT dataset for which eight EEG channels' data were recorded in
+ baseline and followup appointments.
+ We removed the initial waking period, and computed spectrial power in seven
+ frequency bands (normalized to total power at 0.01 to 35Hz).
  
-\begin_inset Formula $D_{AA}=d(A_{baseline},A_{followup})$
+\end_layout
+
+\begin_layout Standard
+As quasiperiodic increases in the middle-beta band can be obscured by averaging
+ with low-beta 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "merica_spectral_2005"
+literal "false"
+
 \end_inset
 
- to inter-individual distances 
-\begin_inset Formula $D_{AB}=d(A_{baseline},B_{followup})$
-\end_inset
-
-.
- Measures were considered 
-\begin_inset Quotes eld
-\end_inset
-
-trait-like
-\begin_inset Quotes erd
-\end_inset
-
- if they varied less within an individual than between individuals (
-\begin_inset Formula $D_{AA}<D_{AB}$
-\end_inset
-
-) according to a t-test (Table X).
- 
+, we [will] split the beta band into two subbands.
 \end_layout
 
 \begin_layout Subsection*
-Hypnograms and other hypnographic quantities
-\end_layout
-
-\begin_layout Standard
-Measures were computed on integer-valued hypnograms and several other hypnograph
-ic quantities as described below:
-\end_layout
-
-\begin_layout Subsubsection*
-Spectral power
-\end_layout
-
-\begin_layout Standard
-We computed spectral power, epochwise, in each of five classical frequency
- bands.
- These hypnographic quantities were normalized to unity maximum (
-\begin_inset Formula $x/\max x$
-\end_inset
-
-) before transforming to logarithmic coordinates; outliers were then removed
- using the kNN distance, and then time-derivatives were estimated with heavy
- (
-\begin_inset Formula $\lambda=10^{30})$
-\end_inset
-
- total variation regularization.
- Measures were then computed on the estimated 
-\begin_inset Formula $\frac{d}{dt}(\log x)=\dot{x}/x$
-\end_inset
-
-.
- 
+Fitting ARIMA coefficients
 \end_layout
 
 \begin_layout Section*
@@ -161,7 +322,19 @@ Results
 \end_layout
 
 \begin_layout Subsection*
-Hypnograms
+Superepochal autoregressive coefficients are trait-like
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+btprint "btPrintCited"
+bibfiles "bibliography_rob"
+options "plain"
+
+\end_inset
+
+
 \end_layout
 
 \end_body

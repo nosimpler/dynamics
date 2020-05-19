@@ -112,8 +112,8 @@ literal "false"
 \end_layout
 
 \begin_layout Standard
-While quantitative dynamical models of polysomnography at the ultradian
- timescale are few (but see 
+While quantitative models of brain dynamics at the ultradian timescale are
+ few (but see 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "merica_state_2004"
@@ -125,7 +125,7 @@ literal "false"
 \emph on
 micro
 \emph default
-structural events, among them autoregressive (AR) models 
+structural events during sleep, among them autoregressive (AR) models 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "pardey_new_1996,olbrich_dynamics_2003"
@@ -134,8 +134,8 @@ literal "false"
 \end_inset
 
 .
- We propose here to extend the use of AR models to quantify ultradian dynamics,
- at the level of power changes as a function of ep
+ We shall propose here to extend the use of AR models to quantify ultradian
+ dynamics, viewing spectral power as a function of epoch.
 \end_layout
 
 \begin_layout Standard
@@ -177,8 +177,9 @@ literal "false"
 \end_inset
 
  being commonplace.
- Models in the AR family yield a low-dimensional representation of the data
- in the coefficients (the 
+ While most often used for forecasting [refs.], models in the AR family yield
+ a low-dimensional representation of the data in theit coefficients (the
+ 
 \begin_inset Formula $a_{n}$
 \end_inset
 
@@ -190,16 +191,9 @@ vanilla
 \begin_inset Quotes erd
 \end_inset
 
- AR), which are further tied to spectral estimates by the Wiener-Khinchin
- theorem.
- This makes the coefficients particularly useful as regression and classificatio
-n variables.
- 
-\end_layout
-
-\begin_layout Standard
-Indeed, autoregressive coefficients have been used as features for neural-networ
-k based classification of sleep stage 
+ AR) This makes the coefficients particularly useful as regression and classific
+ation variables, and indeed autoregressive coefficients have been used as
+ features for neural-network based classification of sleep stage 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "pardey_new_1996"
@@ -216,7 +210,7 @@ literal "false"
 \end_inset
 
 .
- However, AR models typically require the time-series to be stationary.
+ However, AR models typically require a time-series to be stationary.
  In 
 \begin_inset CommandInset citation
 LatexCommand cite
@@ -225,11 +219,14 @@ literal "false"
 
 \end_inset
 
-, it was argued that stationarity holds for one-second time windows in sleep
- EEG, i.e.
- at the event timescale, but that this should not be expected to hold on
- longer scales.
- With that being said, the so-called ARIMA (where 
+, it was argued that the stationarity assumption holds in sleep EEG for
+ one-second time windows, i.e.
+ at the event timescale, but does not hold at longer scales.
+ 
+\end_layout
+
+\begin_layout Standard
+With that in mind, the so-called ARIMA (where 
 \emph on
 I
 \emph default
@@ -237,10 +234,10 @@ I
 \emph on
 integrated)
 \emph default
- models, which are simply ARMA models on the time-differenced signal, can
+ models, which are simply ARMA models on a time-differenced signal, can
  ameliorate the stationarity problem.
- While the ARIMA model family has been applied to electroencephalography
- for detecting epilepsy 
+ The ARIMA model family has been applied to electroencephalography for detecting
+ epilepsy 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "mohamadi_arima-garch_2017"
@@ -248,17 +245,18 @@ literal "false"
 
 \end_inset
 
-, to our knowledge it has not been applied to sleep data.
+, but to our knowledge it has not been applied to sleep data.
+ 
 \end_layout
 
 \begin_layout Standard
-[[Our approach here will be twofold: First, we will examine the use of ARIMA
- coefficients to characterize long-timescale (above-epoch scale) spectral
- power time-series during sleep.
+Because AR coefficients are further tied to spectral estimates by the Wiener-Khi
+nchin theorem, our approach here will be twofold: First, we will examine
+ the use of ARIMA coefficients to characterize long-timescale (above-epoch
+ scale) spectral power time-series during sleep.
  Second, we will use matrix and tensor factorization methods to extract
- structure from power spectra and spectral time-series in the multichannel/multi
-band context and in populations, comparing AR power spectra with other spectral
- models.
+ structure from AR power spectra in the multichannel/multiband context in
+ populations, [[comparing AR power spectra with other spectral models?]].
  We note that nonnegative matrix factorization has recently been applied
  to sleep data 
 \begin_inset CommandInset citation
@@ -268,8 +266,8 @@ literal "false"
 
 \end_inset
 
-, and tensor factorization has been applied to discriminate sleep patterns
- in Alzheimer's disease 
+ with some success, and tensor factorization has been applied to discriminate
+ sleep patterns in Alzheimer's disease 
 \begin_inset CommandInset citation
 LatexCommand cite
 key "kim_discriminative_2019,de_wel_decomposition_2019"
@@ -285,21 +283,8 @@ literal "false"
 Methods
 \end_layout
 
-\begin_layout Standard
-Quasiperiodic increases in the middle-beta band can be obscured by averaging
- with low-beta 
-\begin_inset CommandInset citation
-LatexCommand cite
-key "merica_spectral_2005"
-literal "false"
-
-\end_inset
-
-, and as such we [will] split the beta band into two subbands.
-\end_layout
-
 \begin_layout Subsection*
-Data analysis
+Data preprocessing
 \end_layout
 
 \begin_layout Standard
@@ -311,7 +296,24 @@ We analyzed the subset (
  baseline and followup appointments.
  We removed the initial waking period, and computed spectrial power in seven
  frequency bands (normalized to total power at 0.01 to 35Hz).
- The 
+ 
+\end_layout
+
+\begin_layout Standard
+As quasiperiodic increases in the middle-beta band can be obscured by averaging
+ with low-beta 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "merica_spectral_2005"
+literal "false"
+
+\end_inset
+
+, we [will] split the beta band into two subbands.
+\end_layout
+
+\begin_layout Subsection*
+Fitting ARIMA coefficients
 \end_layout
 
 \begin_layout Section*
