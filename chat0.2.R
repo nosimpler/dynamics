@@ -8,7 +8,7 @@ demofile <- '~/dyn/data/chat/tab/chat-baseline.csv'
 demo <- read_csv(demofile)
 
 load_data <- function(){
-  df <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.txt', guess_max = 1000000) %>%
+  df <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.beta2.txt', guess_max = 1000000) %>%
     filter(!grepl('nonrandomized', ID)) %>%
     separate(ID, into = c("DATASET", "COND", "ID"), sep='-')
 }

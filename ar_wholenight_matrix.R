@@ -71,6 +71,29 @@ make_tensar <- function(df){
 # meas <- left_join(tdt,filter(sleepstat, COND=='baseline'))
 # summary(lm(V3~ ., data=select(meas,-COND,-ID,-V2)))
 
+regressors <- left_join(demo2, filter(ar_bf, term=='ar4'), by="ID")
+regressors_C3b <- filter(regressors, B=='SIGMA', CH=='C3')  %>% 
+  replace(is.na(.), 0)# %>%
+
+regressed <- tibble()
+for (clmn in colnames(select_if(regressors_C3b, is.numeric))){
+  #print(clmn)
+  variables <- c(clmn, 'ageyear_at_meas', 'male', 'as.factor(race3)')
+  f <- as.formula(
+    paste('baseline', 
+          paste(variables, collapse = " + "), 
+          sep = " ~ "))
+  lmfit <- tidy(lm(f, data=regressors_C3b))
+  
+  regressed <- rbind(regressed, 
+                     filter(lmfit, term==sym(!!clmn)))
+}
+phack <- filter(arrange(regressed, p.value), p.value < 0.05)
+ehack <- filter(arrange(regressed, estimate), p.value < 0.05)
+print(phack)
+ggplot(regressors_C3b, aes(y=baseline, x=slpprdp))+
+  ggbeeswarm::geom_beeswarm(color='blue', size=0.1)+stat_summary()
+
 ggplot(corrs, aes(x=CH, y=B, fill=estimate))+
   geom_tile()+
   facet_wrap(~term)
