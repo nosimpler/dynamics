@@ -2,11 +2,11 @@
 library(OutlierDetection)
 library(tvR)
 # find outliers
-rm_outliers <- function(df){
+rm_outliers <- function(df, var){
   #df <- df %>% mutate(FLAGGED=0)
-  idx <- (abs(df$value-mean(df$value))>2*sd(df$value))
+  idx <- (abs(df[[var]]-mean(df[[var]]))>2*sd(df[[var]]))
   #print(idx)
-  df[['value']][idx] <- NA
+  df[[var]][idx] <- NA
   #print(df)
   df
 }
