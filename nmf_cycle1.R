@@ -20,7 +20,7 @@ data1 <- ntp1 %>%
   filter(CYCLE == 1) %>%
   group_by(ID,COND,B,CH) %>%
   arrange(E) %>%
-  #filter(row_number()<= nth(which(peaks==TRUE), n=2)) %>%
+  filter(row_number()<= nth(which(peaks==TRUE), n=1)) %>%
   mutate(Eshift = E-min(E)+1) %>%
   mutate(Epercent = Eshift/(max(Eshift))*100) %>%
   mutate(dPdt = c(diff(smoothed)[1],diff(smoothed))) %>%
@@ -35,7 +35,7 @@ data2 <- data1 %>%
   summarize(mean_der=mean(dPdt), mean_sm=mean(smoothed), mean=mean(PSD))
 
 
-blmn <- drop_na(filter(data2, COND=='followup', B=='GAMMA', CH=='F3')) %>%
+blmn <- drop_na(filter(data2, COND=='followup', B=='ALPHA', CH=='O1')) %>%
   ungroup() %>%
   group_by(ID) %>%
   mutate(mean_der_nonneg = (mean_der-min(mean_der))/(max(mean_der)-min(mean_der)),
@@ -63,4 +63,4 @@ for (v in names(wdemo)[startsWith(names(wdemo), 'V')]){
   regress_all(wdemo, v)
 }
 
-ggplot(wdemo, aes(x=ageyear_at_meas, y=V1))+stat_summary_bin(color='blue')+geom_point()
+ggplot(wdemo, aes(x=plmcadelta, y=V3))+stat_summary_bin(color='blue')+geom_point()

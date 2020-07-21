@@ -92,7 +92,7 @@ ggplot(data, aes(x=Epercent, y=dPdt))+geom_point(size=0.1, alpha=0.05)+
   ylim(-0.025, 0.025)
 
 # n normalized time bins for comparisons/NMF
-cut_by <- c(0,seq(20)*5)
+cut_by <- c(0,seq(50)*2)
 data2 <- data1 %>% 
   mutate(bin=cut(Epercent, breaks=cut_by)) %>%
   group_by(bin, ID,COND,B,CH) %>%
@@ -118,7 +118,7 @@ make_matrix <- function(df){
 
 # one channel, one band
 
-blna <- drop_na(filter(data2, COND=='followup', B=='BETA', CH=='C3'))
+blna <- drop_na(filter(data2, COND=='followup', B=='DELTA', CH=='O1'))
 b <- blna %>% ungroup() %>% select(ID, bin, mean_der) %>%
   pivot_wider(names_from = bin, values_from = mean_der) %>%
   drop_na()
@@ -153,26 +153,6 @@ p6 <- qplot(1:20,canfac$U[[2]][,3])
 p4/p5/p6
 
 
-
-nm <- blna %>% ungroup() %>% select(ID, bin, mean) %>%
-  pivot_wider(names_from = bin, values_from = mean) %>%
-  drop_na()
-IDlist_nm <- unique(nm$ID)
-nm2 <- nm[,-1]
-nm2 <- matrix(as.numeric(unlist(nm2)),nrow=nrow(nm2))
-
-
-nmffit <- nmf(nm2,2, method='lee')
-print(nmffit@residuals)
-plot(nmffit@fit@H[1,], type='l', col='red')
-lines(nmffit@fit@H[2,], col='green')
-lines(nmffit@fit@H[3,], col='blue')
-lines(nmffit@fit@H[4,], col='orange')
-lines(nmffit@fit@H[5,], col='violet')
-
-w <- nmffit@fit@W %>% as.tibble()
-w$nsrrid <- as.numeric(IDlist_nm)
-wdemo <- left_join(w, demo)
 # use nnTensor library to make nonnegative tensor for mean
 tens_nonneg <- make_tensor(drop_na(filter(data2, 
                                           B=='DELTA',

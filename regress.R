@@ -8,7 +8,7 @@ library(glmnet)
 
 regress_all <- function(wdemo, lhs){
 regressors <- wdemo %>% select_if(~ !any(is.na(.))) %>%
-  rm_outliers(lhs) #%>% mutate(V1=log(V1),V2=log(V2), V3=log(V3)) %>%
+  rm_outliers(lhs) %>% filter(baseline<95)#%>% mutate(V1=log(V1),V2=log(V2), V3=log(V3)) %>%
   #filter(V1 > -2, V2 > -10, V3 > -10)
 
 regressed <- tibble()
