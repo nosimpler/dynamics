@@ -11,7 +11,7 @@ demo <- read_csv(demofile)
 # 8 EEG channels, beta 18-25(?)Hz
 load_data_beta2 <- function(){
   df <- read_table2('~/dyn/data/chat/tab/PSD.E.B.CH.beta2.txt', guess_max = 1000000) %>%
-    filter(!grepl('nonrandomized', ID)) #%>%
+    filter(!grepl('nonrandomized', ID), CH == 'C3') #%>%
     #separate(ID, into = c("DATASET", "COND", "ID"), sep='-')
 }
 

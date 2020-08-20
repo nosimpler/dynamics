@@ -8,7 +8,7 @@ figdir <- '/Users/rl422/dyn/figs/'
 
 #####
 # use Wgroup to seed
-n_components <- 4 
+n_components <- 6 
 
 Hall <- tibble(component=as.character(),
                       value=as.numeric(),
@@ -19,21 +19,22 @@ Wall <- tibble(component=as.character(),
                       value=as.numeric(),
                       ID=as.character(),
                       FR=as.numeric())
-#IDlist <- distinct(select(data, ID)) %>% collect()
+IDlist <- distinct(select(data, ID)) %>% collect()
 err <- list()
 # do nmf for each individual
-for (id in sample(IDlist$ID)) {
+for (id in IDlist$ID) {
   print(id)
   idmat <- datahyp %>%
     filter(CH == 'C3',
            ID == id,
           # STAGE=='NREM2',
-           CYCLE >= 1) %>%
+           #CYCLE >= 1
+          ) %>%
     select(E, F, PSD, STAGE_N) %>%
     arrange(E, F) %>% collect()
   epochs <- unique(idmat$E)
   fr <- unique(idmat$F)
-  stage_n <- idmat %>% filter(F==0) %>% select(STAGE_N)
+  stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
   idmat <- idmat %>% 
     select(E,F,PSD) %>%
     pivot_wider(names_from = E, values_from = PSD)
@@ -71,21 +72,28 @@ for (id in sample(IDlist$ID)) {
   resultsH$STAGE_N <- stage_n$STAGE_N
   
   #rename hack
-  resultsW <- resultsW %>% rename(V1=h0) %>% pivot_longer(starts_with('V'), 
+  resultsW <- resultsW %>% 
+    rename(V1='h0') %>% 
+    pivot_longer(starts_with('V'), 
                           names_to='component', 
                           values_to = 'value')
   
   Wall <- add_row(Wall, resultsW)
   
-  resultsH <- resultsH %>% rename(V1=h0) %>% pivot_longer(starts_with('V'), 
+  resultsH <- resultsH %>% 
+    rename(V1='h0') %>% 
+    pivot_longer(starts_with('V'), 
                                         names_to='component', 
                                         values_to = 'value')
   Hall <- add_row(Hall, resultsH)
   graphics.off()
-  p <- ggplot(resultsW, aes(x=FR,y=value,color=component))+
+  p1 <- ggplot(resultsW, aes(x=FR,y=value,color=component))+
     geom_line()
-  plot(p)
-  ggsave(paste(figdir, id, '_group.pdf',sep=''))
+ 
+  p2 <- ggplot(resultsH, aes(x=E,y=value,color=component))+
+    geom_line()
+  plot(p1/p2)
+  ggsave(paste(figdir, id, '_withwake.pdf',sep=''))
 }
 ggplot(Hall, aes(x=E,
                         y=value,
@@ -103,7 +111,7 @@ Y_pop <-Wall %>%
 nW <- 46
 nH <- 816*n_components
 
-n_components <- 8
+
 h0 <- rep(1.0,nH)
 w0 <- rep(1.0,nW)
 #w0 <- Wgroup

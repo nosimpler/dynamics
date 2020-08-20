@@ -1,26 +1,38 @@
 # smoothing, outliers, etc.
-library(OutlierDetection)
+
 library(tvR)
 # find outliers
-rm_outliers <- function(df, var){
-  #df <- df %>% mutate(FLAGGED=0)
-  idx <- (abs(df[[var]]-mean(df[[var]]))>2*sd(df[[var]]))
-  print(idx)
-  df[[var]][idx] <- NA
-  #print(df)
-  df
+outlier <- function(x,t=3) { mean(x,na.rm=T) + t * sd(x,na.rm=T) }
+
+outliers <- function(x,m =mean(x,na.rm=T) , sdev = sd(x,na.rm=T) ,t=3)
+{
+  lwr <- m - t * sdev
+  upr <- m + t * sdev
+  x[ x < lwr ] <- NA
+  x[ x > upr ] <- NA
+  x
 }
 
-# again, NN method
-rm_outliers2 <- function(df){
-  idx <- nn(df$value,cutoff=0.9)[['Location of Outlier']]
-  print(idx)
-  if (length(idx) == 0){
-    return(df)
-  }
-  else{
-    return(df[-idx,])
-  }
+outliers.inc <- function(x, inc = rep(T,length(x)) , m =mean(x[inc],na.rm=T) , sdev = sd(x[inc],na.rm=T) ,t=3)
+{
+  lwr <- m - t * sdev
+  upr <- m + t * sdev
+  x[ x < lwr ] <- NA
+  x[ x > upr ] <- NA
+  x[ ! inc ]   <- NA
+  x
+}
+
+is.outlier <- function(x,m =mean(x,na.rm=T) , sdev = sd(x,na.rm=T) ,t=3)
+{
+  is.na( (!is.na(x)) & outliers(x,m,sdev,t))
+}
+
+is.outlier.inc <- function(x,inc=inc,t=3)
+{
+  m = mean(x[inc],na.rm=T) 
+  sdev = sd(x[inc],na.rm=T) 
+  (!inc) | is.na( (!is.na(x)) & outliers(x,m,sdev,t))
 }
 
 tvr <- function(x) denoise1(x, lambda=1e30)
@@ -34,3 +46,4 @@ rx_all <- function(x) apply(x, 1, rx)
 dx <- function(x) denoise1(x, lambda=1e-30)
 tvrd1 <- function(x) denoise1(c(diff(x)[1],diff(x)), lambda=1e30)
 diffx <- function(x) c(diff(x),diff(x)[length(diff(x))])
+loessx <- function(x,t) predict(loess(x~t, span = 0.1))

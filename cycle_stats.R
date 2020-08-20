@@ -1,3 +1,5 @@
+
+# computing stats on first semicycle for demographics
 cycle_max <- H_sindy %>% group_by(ID) %>%
   summarize(slopedelta = (max(drV6))-min(drV6)) %>%
   separate(ID, c('study', 'condition', 'nsrrid')) %>% 
@@ -13,3 +15,7 @@ regress_all(wdemo, 'mean')
 ggplot(wdemo, aes(y=mean, x=ageyear_at_meas))+
   ggbeeswarm::geom_beeswarm(alpha=0.3)+
   stat_summary()
+
+
+
+  
