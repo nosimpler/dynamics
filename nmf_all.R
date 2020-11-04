@@ -2,13 +2,13 @@
 library(NMF)
 library(tidyverse)
 # select ID
-
+library(patchwork)
 
 figdir <- '/Users/rl422/dyn/figs/'
 
 #####
 # use Wgroup to seed
-n_components <- 6 
+n_components <- 7 
 
 Hall <- tibble(component=as.character(),
                       value=as.numeric(),
@@ -19,19 +19,24 @@ Wall <- tibble(component=as.character(),
                       value=as.numeric(),
                       ID=as.character(),
                       FR=as.numeric())
-IDlist <- distinct(select(data, ID)) %>% collect()
-err <- list()
-# do nmf for each individual
-for (id in IDlist$ID) {
-  print(id)
-  idmat <- datahyp %>%
-    filter(CH == 'C3',
+
+# first pass through nmf
+nmf1 <- function(data, n_components=6){
+
+  IDlist <- distinct(select(data, ID)) %>% collect() %>% arrange()
+  err <- list()
+  # do nmf for each individual
+  for (id in IDlist$ID) {
+    print(id)
+    idmat <- datahyp %>%
+      filter(CH == 'C3',
            ID == id,
           # STAGE=='NREM2',
-           #CYCLE >= 1
+           CYCLE >= 1
           ) %>%
-    select(E, F, PSD, STAGE_N) %>%
-    arrange(E, F) %>% collect()
+      #rename(PSD=MTM) %>%
+      select(E, F, PSD, STAGE_N) %>%
+      arrange(E, F) %>% collect()
   epochs <- unique(idmat$E)
   fr <- unique(idmat$F)
   stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
@@ -53,7 +58,7 @@ for (id in IDlist$ID) {
   for (i in seq(n_components-1)){
     h0 <- rbind(h0, rep(1.0, nH))
     w0 <- cbind(w0, rep(1.0,nW))
-    w0[i,i] <- 2
+    w0[i,i] <- 2.0
   }
   colnames(h0) <- NULL
   colnames(w0) <- NULL
@@ -61,7 +66,10 @@ for (id in IDlist$ID) {
   sansf <- idmat[, -1]
   nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
   init <- nmfModel(n_components, nmat, W = w0, H = h0)
+  eps <- .Machine$double.eps^2
+  print(min(nmat))
   nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
+  #nmffit <- nmf(nmat, n_components, method = 'lee', seed = init)
   err[[id]] <- nmffit@residuals
   resultsH <- as.tibble(t(nmffit@fit@H))
   resultsW <- as.tibble(nmffit@fit@W)
@@ -88,71 +96,244 @@ for (id in IDlist$ID) {
   Hall <- add_row(Hall, resultsH)
   graphics.off()
   p1 <- ggplot(resultsW, aes(x=FR,y=value,color=component))+
-    geom_line()
+    geom_line() + scale_color_brewer(palette='Set1')
  
   p2 <- ggplot(resultsH, aes(x=E,y=value,color=component))+
-    geom_line()
+    geom_line() + scale_color_brewer(palette='Set1')
   plot(p1/p2)
-  ggsave(paste(figdir, id, '_withwake.pdf',sep=''))
-}
-ggplot(Hall, aes(x=E,
-                        y=value,
-                        color=component, 
-                        shape=as.factor(STAGE_N)))+
-  geom_point()+
-  facet_wrap(~ID,nrow=3)
+  ggsave(paste(figdir, id, 'nowake.pdf',sep=''))
+  }
+  list(H=Hall, W=Wall)
+  }
 
 
 ######
 # now do nmf on FR x (ID x V) for class membership
-Y_pop <-Wall %>%
-  pivot_wider(names_from=c(ID,component), values_from=value)
+group_nmf <- function(nmf_fits, n_components=6){
 
-nW <- 46
-nH <- 816*n_components
+  Y_pop <-nmf_fits$W %>%
+    pivot_wider(names_from=c(ID,component), values_from=value)
+
+  nW <- length(unique(nmf_fits$W$FR))
+  nH <- length(unique(nmf_fits$H$ID))*n_components
 
 
-h0 <- rep(1.0,nH)
-w0 <- rep(1.0,nW)
-#w0 <- Wgroup
-for (i in seq(n_components-1)){
-  h0 <- rbind(h0, rep(1.0, nH))
-  w0 <- cbind(w0, rep(1.0,nW))
-  w0[i,i] <- 2
+  h0 <- rep(1.0,nH)
+  w0 <- rep(1.0,nW)
+  #w0 <- Wgroup
+  for (i in seq(n_components-1)){
+    h0 <- rbind(h0, rep(1.0, nH))
+    w0 <- cbind(w0, rep(1.0,nW))
+    w0[i,i] <- 2
+  }
+
+
+  sansf <- select(Y_pop, -FR)
+  Y <-matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+  init <- nmfModel(n_components,Y, W = w0, H = h0)
+  #nmffit <- nmf(log(nmat/min(nmat)), 3, method='lee', seed='nndsvd')
+  nmffit <- nmf(Y, n_components, method = 'lee', seed = init)
+  Hgroup <- nmffit@fit@H
+  Wgroup <- nmffit@fit@W
+  colnames(Hgroup) <- colnames(sansf)
+
+# convert to more readable format
+  Hpop <- as_tibble(t(Hgroup)) %>% rename(V1 = w0)
+  Hpop$IDvec <- rownames(t(Hgroup))
+  Hpop <- separate(Hpop, IDvec, 
+                 into=c('study','condition','ID','component'))
+
+  # plot(Wgroup[,1],type='l', col='red')
+  # lines(Wgroup[,2], col='green')
+  # lines(Wgroup[,3], col='blue')
+  # lines(Wgroup[,4], col='violet')
+  # lines(Wgroup[,5], col='brown')
+  # lines(Wgroup[,6], col='pink')
+  pairs(t(Hgroup))
+  groupfit <- list()
+  groupfit$W <- Wgroup
+  groupfit$H <- Hpop
+  groupfit
+}
+
+nmf2 <- function(data, Wgroup, n_components=6){
+  
+  IDlist <- distinct(select(data, ID)) %>% collect()
+  err <- list()
+  # do nmf for each individual
+  for (id in sample(IDlist$ID, 20)) {
+    print(id)
+    idmat <- datahyp %>%
+      #filter(str_detect(ID, 'baseline')) %>%
+      filter(CH == 'C3',
+             ID == id,
+             # STAGE=='NREM2',
+             #CYCLE >= 1
+      ) %>%
+      select(E, F, PSD, STAGE_N) %>%
+      arrange(E, F) %>% collect()
+    epochs <- unique(idmat$E)
+    fr <- unique(idmat$F)
+    stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
+    idmat <- idmat %>% 
+      select(E,F,PSD) %>%
+      pivot_wider(names_from = E, values_from = PSD)
+    
+    # remove F column
+    # nmf initial conditions
+    nH <- ncol(idmat)-1
+    nW <- nrow(idmat)
+    #w0 <- cbind(rep(1.0, nW), rep(1.0, nW), rep(1.0, nW))
+    #w0[1, 1] <- 10
+    #w0[12, 2] <- 10
+    #w0[25, 3] <- 10
+    
+    h0 <- rep(1.0,nH)
+    w0 <- rep(1.0,nW)
+    for (i in seq(n_components-1)){
+      h0 <- rbind(h0, rep(1.0, nH))
+      w0 <- cbind(w0, rep(1.0,nW))
+      w0[i,i] <- 2
+    }
+    colnames(h0) <- NULL
+    colnames(w0) <- NULL
+    w0 <- Wgroup
+    sansf <- idmat[, -1]
+    nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+    init <- nmfModel(n_components, nmat, W = w0, H = h0)
+    nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
+    err[[id]] <- nmffit@residuals
+    resultsH <- as.tibble(t(nmffit@fit@H))
+    resultsW <- as.tibble(nmffit@fit@W)
+    resultsH$E <- epochs
+    resultsW$FR <- fr
+    resultsW$ID <- id
+    resultsH$ID <- id
+    resultsH$STAGE_N <- stage_n$STAGE_N
+    
+    #rename hack
+    resultsW <- resultsW %>% 
+      rename(V1='w0') %>% 
+      pivot_longer(starts_with('V'), 
+                   names_to='component', 
+                   values_to = 'value')
+    
+    Wall <- add_row(Wall, resultsW)
+    
+    resultsH <- resultsH %>% 
+      rename(V1='w0') %>% 
+      pivot_longer(starts_with('V'), 
+                   names_to='component', 
+                   values_to = 'value')
+    Hall <- add_row(Hall, resultsH)
+    graphics.off()
+    p1 <- ggplot(resultsW, aes(x=FR,y=value,color=component))+
+      geom_line()
+    
+    p2 <- ggplot(resultsH, aes(x=E,y=value,color=component))+
+      geom_line()
+    plot(p1/p2)
+    #ggsave(paste(figdir, id, '_withwake.pdf',sep=''))
+  }
+  list(H=Hall, W=Wall)
+}
+
+nmf_indiv <- function(datahyp, id, n_components=6){
+  
+    print(id)
+    idmat <- datahyp %>%
+      filter(CH == 'C3',
+             ID == id,
+             # STAGE=='NREM2',
+             #CYCLE >= 1
+      ) %>%
+      #rename(PSD=MTM) %>%
+      select(E, F, PSD, STAGE_N) %>%
+      arrange(E, F) %>% collect()
+    epochs <- unique(idmat$E)
+    fr <- unique(idmat$F)
+    stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
+    idmat <- idmat %>% 
+      select(E,F,PSD) %>%
+      pivot_wider(names_from = E, values_from = PSD)
+    
+    # remove F column
+    # nmf initial conditions
+    nH <- ncol(idmat)-1
+    nW <- nrow(idmat)
+    #w0 <- cbind(rep(1.0, nW), rep(1.0, nW), rep(1.0, nW))
+    #w0[1, 1] <- 10
+    #w0[12, 2] <- 10
+    #w0[25, 3] <- 10
+    
+    h0 <- rep(1.0,nH)
+    w0 <- rep(1.0,nW)
+    for (i in seq(n_components-1)){
+      h0 <- rbind(h0, rep(1.0, nH))
+      w0 <- cbind(w0, rep(1.0,nW))
+      w0[i,i] <- 2
+    }
+    h <- as_tibble(t(h0))
+    w <- as_tibble(w0)
+    h$E <- seq(1,nH)
+    w$FR <- seq(0,45)
+    h <- pivot_longer(rename(h, V1=h0), 
+                      starts_with('V'),
+                      names_to = 'component')
+    w <- pivot_longer(rename(w, V1=w0), 
+                      starts_with('V'),
+                      names_to = 'component')
+    
+    p1 <- ggplot(h, aes(x=E, y=value, color=component))+
+      geom_path()+scale_color_brewer(palette='Set1')
+    p2 <- ggplot(w, aes(x=FR, y=value, color=component))+
+      geom_path()+scale_color_brewer(palette='Set1')
+    
+    p2/p1
+    
+    colnames(h0) <- NULL
+    colnames(w0) <- NULL
+    #w0 <- Wgroup
+    sansf <- idmat[, -1]
+    nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+    init <- nmfModel(n_components, nmat, W = w0, H = h0)
+    #eps <- .Machine$double.eps^2
+    print(min(nmat))
+    #nmffit <- nmf(log(nmat / eps), n_components, method = 'lee', seed = init)
+    nmffit <- nmf(log(nmat /min(nmat)), 
+                  n_components, 
+                  method = 'lee', 
+                  seed = init)
+    err <- nmffit@residuals
+    resultsH <- as.tibble(t(nmffit@fit@H))
+    resultsW <- as.tibble(nmffit@fit@W)
+    resultsH$E <- epochs
+    resultsW$FR <- fr
+    resultsW$ID <- id
+    resultsH$ID <- id
+    resultsH$STAGE_N <- stage_n$STAGE_N
+    
+    #rename hack
+    resultsW <- resultsW %>% 
+      rename(V1='h0') %>% 
+      pivot_longer(starts_with('V'), 
+                   names_to='component', 
+                   values_to = 'value')
+
+    resultsH <- resultsH %>% 
+      rename(V1='h0') %>% 
+      pivot_longer(starts_with('V'), 
+                   names_to='component', 
+                   values_to = 'value')
+    orig <- idmat %>% pivot_longer(-F, names_to='E') %>% 
+      mutate(FR=replace(F, F ==0, -0.5)) %>%
+      select(-F) %>%
+      mutate(E = as.numeric(E))
+    results <- list(W = resultsW, H = resultsH, err = err, orig=orig)
 }
 
 
-sansf <- select(Y_pop, -FR)
-Y <-matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
-init <- nmfModel(n_components,Y, W = w0, H = h0)
-#nmffit <- nmf(log(nmat/min(nmat)), 3, method='lee', seed='nndsvd')
-nmffit <- nmf(Y, n_components, method = 'lee', seed = init)
-Hgroup <- nmffit@fit@H
-Wgroup <- nmffit@fit@W
-colnames(Hgroup) <- colnames(sansf)
 
-# convert to more readable format
-Hpop <- as_tibble(t(Hgroup)) %>% rename(V1 = w0)
-Hpop$IDvec <- rownames(t(Hgroup))
-Hpop <- separate(Hpop, IDvec, 
-                 into=c('study','condition','ID','component'))
-
-# Hpop_regress <- Hpop %>% 
-#   filter(component=='V2', condition=='followup') %>%
-#   select(ID, 'V5') %>%
-#   transmute(nsrrid=as.numeric(ID), V=log(V5)) %>%
-#   left_join(demo) %>% filter(V > -0.5)
-# regress_all(Hpop_regress, 'V')
-# ggplot(Hpop_regress, aes(y=V, x=ageyear_at_meas))+
-#   stat_summary()+
-#   ggbeeswarm::geom_beeswarm(size=0.5)+
-#   scale_color_brewer(palette='Set1')
-plot(Wgroup[,1],type='l', col='red')
-lines(Wgroup[,2], col='green')
-lines(Wgroup[,3], col='blue')
-lines(Wgroup[,4], col='violet')
-lines(Wgroup[,5], col='brown')
-lines(Wgroup[,6], col='pink')
-lines(Wgroup[,7], col='orange')
-lines(Wgroup[,8], col='cyan')
-pairs(t(Hgroup))
+#nmf_fit <- nmf1(datahyp, n_components=4)
+#groupfit <- group_nmf(nmf_fit, n_components=4)
+refit <- nmf2(datahyp, groupfit$W, n_components=4)

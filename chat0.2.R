@@ -15,6 +15,12 @@ load_data_beta2 <- function(){
     #separate(ID, into = c("DATASET", "COND", "ID"), sep='-')
 }
 
+load_data_mtm <- function(){
+  df <- read_table2('~/dyn/data/chat/tab/MTM-E_F_CH.txt', guess_max = 1000000) %>%
+    filter(!grepl('nonrandomized', ID), CH == 'C3') #%>%
+  #separate(ID, into = c("DATASET", "COND", "ID"), sep='-')
+}
+
 # 1 EEG, 1 EMG, 1Hz bins
 load_data_C3M2 <- function(){
   df <- read_table2('~/dyn/data/chat/tab/PSD-E_F_CH.txt', guess_max = 1000000) %>%
@@ -43,17 +49,18 @@ paired_data <- function(df){
 }
 
 
+
 #idlist = c('301060','300862','300857')
 #psd <- load_data_C3M2() #%>% paired_data() #%>% filter(ID %in% idlist)
+#conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/chatmtm.db")
 conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/psd2.db")
-#conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/chat.db")
-
-#dbWriteTable(conn, "chat", psd)
+#psd <- load_data()
+#DBI::dbWriteTable(conn, "chat", mtm)
 data <- tbl(conn, 'chat')
 #hyp <- load_hypno()
-#dbWriteTable(conn, "chat-hypno", hyp)
+#DBI::dbWriteTable(conn, "chat-hypno", hyp)
 hypno <- tbl(conn, 'chat-hypno')
 datahyp <- left_join(data, hypno)
 #hyp <- load_hypno() %>% filter(ID %in% idlist)
 #sleepstats <- load_sleepstats()
-#dataset <- left_join(psd, hyp)
+#dataset <- left_join(mtm, hyp)
