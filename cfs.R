@@ -31,20 +31,29 @@ remove_10pm_band <- function(df){
     filter(first(CLOCK_HOURS)>22 | first(CLOCK_HOURS<2))
 }
 
+load_so<- function(){
+  df <- read_table2('~/dyn/data/cfs/SPINDLES-E_CH.txt', guess_max=1000000)  
+}
+
+load_spindles <- function(){
+  df <- read_table2('~/dyn/data/cfs/SPINDLES-E_F_CH.txt', guess_max=1000000)  
+}
 
 demo <- load_demo_cfs()
 #cfsdata <- load_cfs()
 conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/cfs/psd.db")
 #DBI::dbWriteTable(conn, "cfs", cfsdata)
 
-cfsdata <- tbl(conn, 'cfs')
+#cfsdata <- tbl(conn, 'cfs')
 #cfsbands <- load_cfs_bands()
 #hyp <- load_hypno_cfs()
 
-hypno <- tbl(conn, 'cfs-hypno10pm')
+hypno <- tbl(conn, 'cfs-hypno10pm') %>% collect()
 #datahyp <- left_join(cfsdata, hypno)
 
 #hypno10 <- hypno %>% collect() %>% remove_10pm()
 #DBI::dbWriteTable(conn, "cfs-hypno10pm", hypno10)
-bhyp10 <- left_join(cfsdata, hypno, copy=TRUE)
+#bhyp10 <- left_join(cfsdata, hypno, copy=TRUE)
+so <- left_join(hypno, load_so())
+sp <- left_join(hypno, load_spindles())
 

@@ -48,19 +48,28 @@ paired_data <- function(df){
   df %>% filter(ID %in% newIDs)
 }
 
+load_so<- function(){
+   df <- read_table2('~/dyn/data/chat/tab/SPINDLES-E_CH_THR.txt', guess_max=1000000)  
+}
 
+load_spindles <- function(){
+  df <- read_table2('~/dyn/data/chat/tab/SPINDLES-E_F_CH.txt', guess_max=1000000)  
+}
 
 #idlist = c('301060','300862','300857')
 #psd <- load_data_C3M2() #%>% paired_data() #%>% filter(ID %in% idlist)
 #conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/chatmtm.db")
-conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/psd2.db")
+#conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/psd100.db")
+#conn2 <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/psd2.db")
 #psd <- load_data()
 #DBI::dbWriteTable(conn, "chat", mtm)
-data <- tbl(conn, 'chat')
-#hyp <- load_hypno()
+#data <- tbl(conn, 'psd')
+hyp <- load_hypno()
+so <- load_so()
+so <- left_join(hyp, so)
 #DBI::dbWriteTable(conn, "chat-hypno", hyp)
-hypno <- tbl(conn, 'chat-hypno')
-datahyp <- left_join(data, hypno)
+#hypno <- tbl(conn, 'chat-hypno')
+#datahyp <- left_join(data, hypno)
 #hyp <- load_hypno() %>% filter(ID %in% idlist)
 #sleepstats <- load_sleepstats()
 #dataset <- left_join(mtm, hyp)

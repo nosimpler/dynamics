@@ -6,40 +6,42 @@ library(patchwork)
 
 figdir <- '/Users/rl422/dyn/figs/'
 
-#####
-# use Wgroup to seed
-n_components <- 7 
 
-Hall <- tibble(component=as.character(),
-                      value=as.numeric(),
-                      ID=as.character(),
-                      E=as.numeric(),
-                      STAGE_N=as.numeric())
-Wall <- tibble(component=as.character(),
-                      value=as.numeric(),
-                      ID=as.character(),
-                      FR=as.numeric())
+
 
 # first pass through nmf
-nmf1 <- function(data, n_components=6){
+nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
 
+  
+  Hall <- tibble(component=as.character(),
+                 value=as.numeric(),
+                 ID=as.character(),
+                 E=as.numeric(),
+                 STAGE_N=as.numeric())
+  Wall <- tibble(component=as.character(),
+                 value=as.numeric(),
+                 ID=as.character(),
+                 FR=as.numeric())
+  
   IDlist <- distinct(select(data, ID)) %>% collect() %>% arrange()
   err <- list()
+  err_random_seed <- list()
   # do nmf for each individual
   for (id in IDlist$ID) {
     print(id)
-    idmat <- datahyp %>%
+    idmat <- data %>%
       filter(CH == 'C3',
            ID == id,
           # STAGE=='NREM2',
-           CYCLE >= 1
+           CYCLE >= 1 #comment this out to include waking periods
           ) %>%
       #rename(PSD=MTM) %>%
-      select(E, F, PSD, STAGE_N) %>%
+      #select(E, F, PSD, STAGE_N) %>%
+      select(E,F,PSD) %>%
       arrange(E, F) %>% collect()
   epochs <- unique(idmat$E)
   fr <- unique(idmat$F)
-  stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
+  #stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
   idmat <- idmat %>% 
     select(E,F,PSD) %>%
     pivot_wider(names_from = E, values_from = PSD)
@@ -66,9 +68,12 @@ nmf1 <- function(data, n_components=6){
   sansf <- idmat[, -1]
   nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
   init <- nmfModel(n_components, nmat, W = w0, H = h0)
-  eps <- .Machine$double.eps^2
-  print(min(nmat))
+
   nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
+  if (compare_random_seed == TRUE){
+    nmffit_random <- nmf(log(nmat / min(nmat)), n_components, method = 'lee')
+    err_random[[id]] <- nmffit_random@residuals
+  }
   #nmffit <- nmf(nmat, n_components, method = 'lee', seed = init)
   err[[id]] <- nmffit@residuals
   resultsH <- as.tibble(t(nmffit@fit@H))
@@ -77,7 +82,7 @@ nmf1 <- function(data, n_components=6){
   resultsW$FR <- fr
   resultsW$ID <- id
   resultsH$ID <- id
-  resultsH$STAGE_N <- stage_n$STAGE_N
+  #resultsH$STAGE_N <- stage_n$STAGE_N
   
   #rename hack
   resultsW <- resultsW %>% 
@@ -101,9 +106,9 @@ nmf1 <- function(data, n_components=6){
   p2 <- ggplot(resultsH, aes(x=E,y=value,color=component))+
     geom_line() + scale_color_brewer(palette='Set1')
   plot(p1/p2)
-  ggsave(paste(figdir, id, 'nowake.pdf',sep=''))
+  ggsave(paste(figdir, id, '100.pdf',sep=''))
   }
-  list(H=Hall, W=Wall)
+  list(H=Hall, W=Wall, err=err)
   }
 
 
@@ -156,12 +161,23 @@ group_nmf <- function(nmf_fits, n_components=6){
   groupfit
 }
 
-nmf2 <- function(data, Wgroup, n_components=6){
+nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
+  
+  Hall <- tibble(component=as.character(),
+                 value=as.numeric(),
+                 ID=as.character(),
+                 E=as.numeric(),
+                 STAGE_N=as.numeric())
+  Wall <- tibble(component=as.character(),
+                 value=as.numeric(),
+                 ID=as.character(),
+                 FR=as.numeric())
   
   IDlist <- distinct(select(data, ID)) %>% collect()
   err <- list()
+  err_random <- list()
   # do nmf for each individual
-  for (id in sample(IDlist$ID, 20)) {
+  for (id in IDlist$ID) {
     print(id)
     idmat <- datahyp %>%
       #filter(str_detect(ID, 'baseline')) %>%
@@ -202,6 +218,12 @@ nmf2 <- function(data, Wgroup, n_components=6){
     nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
     init <- nmfModel(n_components, nmat, W = w0, H = h0)
     nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
+    
+    if (compare_random_seed == TRUE){
+      nmffit_random <- nmf(log(nmat / min(nmat)), n_components, method = 'lee')
+      err_random[[id]] <- nmffit_random@residuals
+    }
+    
     err[[id]] <- nmffit@residuals
     resultsH <- as.tibble(t(nmffit@fit@H))
     resultsW <- as.tibble(nmffit@fit@W)
@@ -235,7 +257,7 @@ nmf2 <- function(data, Wgroup, n_components=6){
     plot(p1/p2)
     #ggsave(paste(figdir, id, '_withwake.pdf',sep=''))
   }
-  list(H=Hall, W=Wall)
+  list(H=Hall, W=Wall, err=err)
 }
 
 nmf_indiv <- function(datahyp, id, n_components=6){
@@ -333,7 +355,8 @@ nmf_indiv <- function(datahyp, id, n_components=6){
 }
 
 
+n_components <- 6
+nmf_fit <- nmf1(datahyp, n_components=n_components)
+groupfit <- group_nmf(nmf_fit, n_components=n_components)
+refit <- nmf2(datahyp, groupfit$W, n_components=n_components)
 
-#nmf_fit <- nmf1(datahyp, n_components=4)
-#groupfit <- group_nmf(nmf_fit, n_components=4)
-refit <- nmf2(datahyp, groupfit$W, n_components=4)

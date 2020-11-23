@@ -5,15 +5,19 @@ library(TSdist)
 library(NMF)
 library(broom)
 library(patchwork)
-# make distance matrix
 
-comp <- c('V1','V2','V3','V4')#,'V5','V6')
+# TO DO: get COMP x CYCLE table
+
+comp <- c('V1','V2','V3','V4','V5','V6')
 cyc <- 5
 n_epochs <- 50
 n_components <- 2
+
 #demo <- demo2 %>% filter(QuEEG1 == 5, QuEEG2 == 5) %>%
  # filter(age < 50)
-#hypnoH <- left_join(demo, Hall4 %>% split_id())
+#Hw <- Hall6_wake %>% split_id()
+#hyp <- select(hypno, ID, E, CYCLE) %>% collect() %>% split_id()
+#hypnoH <- left_join(Hw, hyp) %>% unite_id()
 #hypnoH <- left_join(refit$H, hypno10)
 prerem <- get_prerem(hypnoH, cycle=cyc, n_epochs = n_epochs) %>% 
   filter(ID != 'chat-followup-300853') 
@@ -24,11 +28,11 @@ for (COMP in comp){
 # find REM duration
 rem_dur <- rem_duration(hypnoH, cycle=cyc)
 
-#IDs <- demo %>% 
+IDs <- demo %>% 
 #filter(unittype %in% c(1)) %>%
-#  select(nsrrid) %>%
-#  as.vector()
-IDs <- demo %>% select(nsrrid)
+  select(nsrrid) %>%
+  as.vector()
+#IDs <- demo %>% select(nsrrid)
 
 
 tstable <- prerem %>% 
@@ -39,7 +43,7 @@ tstable <- prerem %>%
   filter(component==COMP) %>% 
   #group_by(nsrrid) %>%
   group_by(ID) %>%
-  mutate(value = normalize(value)) %>%
+  #mutate(value = normalize(value)) %>%
   mutate(E = E-min(E)) %>%
   arrange(E) %>%
   select(ID, E, value) %>%
@@ -81,10 +85,12 @@ durreg <- left_join(V, rem_dur)
 #durreg <- mutate_if(durreg, is.numeric, log10)
 durreg <- mutate_if(durreg, is.numeric, outliers)
 durreg <- mutate_if(durreg, is.numeric, outliers) %>% drop_na()
-
+durreg_regress <- durreg %>% split_id()
+durreg_regress <- left_join(durreg_regress, select(demo, c(nsrrid, ageyear_at_meas, race3, male))) %>%
+  mutate(race3 = factor(race3))
 print(COMP)
 
-print(tidy(lm(duration ~ ., data=select(durreg, -ID))))
+print(tidy(lm(duration ~ ., data=select(durreg_regress, -nsrrid, -study, -session))))
 
 durreg$dur_bin <- durreg$duration %>% cut_number(2)
 durreg_long <- pivot_longer(durreg, cols=c(-ID,-duration, -dur_bin), names_to='NMF')
@@ -102,6 +108,11 @@ p2 <- ggplot(durreg_long, aes(x=value, y=duration, color=NMF))+
 #print(GGally::ggpairs(durreg, 1:2, mapping=aes(color=dur_bin)))+theme_grey()
 #print(p3)
 print(p1+p2)
+wdemo <- left_join(demo, split_id(V)) %>% drop_na(NMF1)
+print(COMP)
+regress_all(wdemo, 'NMF1')
+regress_all(wdemo, 'NMF2')
+
 }
 
 #fit@fit@W/rowSums(fit@fit@W)

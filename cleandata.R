@@ -48,7 +48,7 @@ truncate_to_cycle <- function(df, cyc, n_epochs){
     filter(Etot == n_epochs) 
 }
 
-truncate_to_delta_episode <- function(df) {
+truncate_to_delta_episode <- function(df, episode, orientation) {
   
 }
 
@@ -84,6 +84,11 @@ split_id <- function(df){
   mutate(nsrrid = as.numeric(nsrrid))
 }
 
+# rejoin into ID
+unite_id <- function(df){
+  df %>% unite('ID', study, session, nsrrid, sep='-')
+}
+
 subcycles <- function(df){
   subcyc <- df %>% 
     select(B,E,PSD,nsrrid) %>%
@@ -106,19 +111,51 @@ subcycles <- function(df){
     left_join(df, subcyc, by=c("nsrrid", "E"))
 }
 
-
+# multicomponent
 get_rem <- function(df, cycle=1){
   df %>% group_by(ID, component) %>%
     filter(CYCLE == cycle) %>%
     filter(row_number() >= first(which(STAGE_N==0)))
 }
 
-get_prerem <- function(df, cycle = 1){
+# single component
+get_rem2 <- function(df, cycle=1){
+  df %>% group_by(ID) %>%
+    filter(CYCLE == cycle) %>%
+    filter(row_number() >= first(which(STAGE_N==0)))
+}
+
+# multicomponent signals
+rem_duration <- function(df, cycle = 1){
+  get_rem(df, cycle = cycle) %>%
+    summarize(duration = n()/2) %>%
+    filter(component=='V1') %>%
+    select(ID, duration)
+}
+
+# single-component signals
+rem_duration2 <- function(df, cycle=1){
+  get_rem2(df, cycle = cycle) %>%
+    summarize(duration = n()/2) %>%
+    select(ID, duration)
+}
+
+# multicomponent
+get_prerem <- function(df, cycle = 1, n_epochs=50){
   n_components <- length(unique(df$component))
   df %>% group_by(ID,component) %>%
   filter(CYCLE==cycle) %>%
     filter(row_number() < first(which(STAGE_N==0))) %>%
-    filter(E > max(E)-50)
+    filter(E > max(E)-n_epochs)
+}
+
+# for single-component signals
+get_prerem2 <- function(df, cycle = 1, n_epochs=50){
+  df %>% group_by(ID) %>%
+    filter(CYCLE==cycle) %>%
+    filter(row_number() < first(which(STAGE_N==0))) %>%
+    filter(E > max(E)-n_epochs) %>%
+    mutate(E = E-min(E)-n_epochs)
 }
 
 tvr <- function(x) denoise1(x, lambda=1e30)
@@ -133,3 +170,4 @@ dx <- function(x) denoise1(x, lambda=1e-30)
 tvrd1 <- function(x) denoise1(c(diff(x)[1],diff(x)), lambda=1e30)
 diffx <- function(x) c(diff(x),diff(x)[length(diff(x))])
 loessx <- function(x,t) predict(loess(x~t, span = 0.1))
+

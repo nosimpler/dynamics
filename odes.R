@@ -81,7 +81,7 @@ sindify <- function(Hall) {
  # select(-rsum) %>%
   mutate(across(starts_with('r'), diffx, .names='d{col}'))
 }
-#hypnoH <- left_join(refit$H, hypno, copy=TRUE)
+hypnoH <- left_join(refit$H, hypno, copy=TRUE)
 H_sindy <- sindify(hypnoH %>% filter(ID != 'chat-followup-300853'))
 IDs <- unique(H_sindy$ID)
 B <- list()
