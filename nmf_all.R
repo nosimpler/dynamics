@@ -25,7 +25,7 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
   
   IDlist <- distinct(select(data, ID)) %>% collect() %>% arrange()
   err <- list()
-  err_random_seed <- list()
+  #err_random_seed <- list()
   # do nmf for each individual
   for (id in IDlist$ID) {
     print(id)
@@ -43,12 +43,13 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
   fr <- unique(idmat$F)
   #stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
   idmat <- idmat %>% 
+    ungroup() %>% #changed
     select(E,F,PSD) %>%
-    pivot_wider(names_from = E, values_from = PSD)
+    pivot_wider(id_cols = F, names_from = E, values_from = PSD)
    
   # remove F column
   # nmf initial conditions
-  nH <- ncol(idmat)-1
+  nH <- ncol(idmat)
   nW <- nrow(idmat)
   #w0 <- cbind(rep(1.0, nW), rep(1.0, nW), rep(1.0, nW))
   #w0[1, 1] <- 10
@@ -64,7 +65,8 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
   }
   colnames(h0) <- NULL
   colnames(w0) <- NULL
-  #w0 <- Wgroup
+  
+  # drop frequency column
   sansf <- idmat[, -1]
   nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
   init <- nmfModel(n_components, nmat, W = w0, H = h0)
@@ -72,10 +74,10 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
   nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
   if (compare_random_seed == TRUE){
     nmffit_random <- nmf(log(nmat / min(nmat)), n_components, method = 'lee')
-    err_random[[id]] <- nmffit_random@residuals
+    err[[id]]$random <- nmffit_random@residuals
   }
   #nmffit <- nmf(nmat, n_components, method = 'lee', seed = init)
-  err[[id]] <- nmffit@residuals
+  err[[id]]$fixed <- nmffit@residuals
   resultsH <- as.tibble(t(nmffit@fit@H))
   resultsW <- as.tibble(nmffit@fit@W)
   resultsH$E <- epochs
@@ -114,8 +116,8 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
 
 ######
 # now do nmf on FR x (ID x V) for class membership
-group_nmf <- function(nmf_fits, n_components=6){
-
+group_nmf <- function(nmf_fits, n_components=6, compare_random_seed=FALSE){
+  err <- list()
   Y_pop <-nmf_fits$W %>%
     pivot_wider(names_from=c(ID,component), values_from=value)
 
@@ -136,10 +138,14 @@ group_nmf <- function(nmf_fits, n_components=6){
   sansf <- select(Y_pop, -FR)
   Y <-matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
   init <- nmfModel(n_components,Y, W = w0, H = h0)
-  #nmffit <- nmf(log(nmat/min(nmat)), 3, method='lee', seed='nndsvd')
   nmffit <- nmf(Y, n_components, method = 'lee', seed = init)
+  if (compare_random_seed == TRUE){
+    nmffit_random <- nmf(Y, n_components)
+    err$random = nmffit_random@residuals
+  }
   Hgroup <- nmffit@fit@H
   Wgroup <- nmffit@fit@W
+  err$fixed <- nmffit@residuals
   colnames(Hgroup) <- colnames(sansf)
 
 # convert to more readable format
@@ -158,6 +164,7 @@ group_nmf <- function(nmf_fits, n_components=6){
   groupfit <- list()
   groupfit$W <- Wgroup
   groupfit$H <- Hpop
+  groupfit$err <- err
   groupfit
 }
 
@@ -175,7 +182,6 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
   
   IDlist <- distinct(select(data, ID)) %>% collect()
   err <- list()
-  err_random <- list()
   # do nmf for each individual
   for (id in IDlist$ID) {
     print(id)
@@ -184,7 +190,7 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
       filter(CH == 'C3',
              ID == id,
              # STAGE=='NREM2',
-             #CYCLE >= 1
+             CYCLE >= 1
       ) %>%
       select(E, F, PSD, STAGE_N) %>%
       arrange(E, F) %>% collect()
@@ -192,6 +198,7 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
     fr <- unique(idmat$F)
     stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
     idmat <- idmat %>% 
+      ungroup() %>% #changed
       select(E,F,PSD) %>%
       pivot_wider(names_from = E, values_from = PSD)
     
@@ -221,10 +228,10 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
     
     if (compare_random_seed == TRUE){
       nmffit_random <- nmf(log(nmat / min(nmat)), n_components, method = 'lee')
-      err_random[[id]] <- nmffit_random@residuals
+      err[[id]]$random <- nmffit_random@residuals
     }
     
-    err[[id]] <- nmffit@residuals
+    err[[id]]$fixed <- nmffit@residuals
     resultsH <- as.tibble(t(nmffit@fit@H))
     resultsW <- as.tibble(nmffit@fit@W)
     resultsH$E <- epochs
@@ -354,9 +361,31 @@ nmf_indiv <- function(datahyp, id, n_components=6){
     results <- list(W = resultsW, H = resultsH, err = err, orig=orig)
 }
 
+unfold_err <- function(err){
+  error_diff <- c()
+  for (i in err){
+    print(i)
+    error_diff = rbind(error_diff, i$random - i$fixed)
+  }
+  tibble(ID=names(err), err_diff=error_diff)
+}
 
 n_components <- 6
-nmf_fit <- nmf1(datahyp, n_components=n_components)
-groupfit <- group_nmf(nmf_fit, n_components=n_components)
-refit <- nmf2(datahyp, groupfit$W, n_components=n_components)
+nmf_fit <- nmf1(datahyp, 
+                n_components=n_components, 
+                compare_random_seed = TRUE)
+groupfit <- group_nmf(nmf_fit, 
+                      n_components=n_components, 
+                      compare_random_seed=TRUE)
+refit <- nmf2(datahyp, groupfit$W, 
+              n_components=n_components, 
+              compare_random_seed = TRUE)
 
+err_diff <- unfold_err(nmf_fit$err)
+ggplot(err_diff, aes(x=err_diff))+
+  geom_histogram(bins=100)+
+  xlim(-100,100)
+err_diff_refit <- unfold_err(refit$err)
+ggplot(err_diff_refit, aes(x=err_diff))+
+  geom_histogram(bins=100)+
+  xlim(-1000,1000)

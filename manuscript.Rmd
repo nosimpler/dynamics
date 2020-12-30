@@ -1,0 +1,185 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+# source general data-processing functions
+source("~/dyn/src/dynamics/cleandata.R") 
+source("~/dyn/src/dynamics/proc_stats.R") 
+
+# source ChAT-specific functions
+source("~/dyn/src/dynamics/chat0.2.R") 
+
+# load preprocessed ChAT PSD data and NMF components
+load("~/dyn/rdata/chat-final6.Rdata")
+
+# relabeling (chat specific)
+nmf_fit <- reorder_factors6(nmf_fit)
+refit <- reorder_factors6(refit)
+
+# traitlikeness (10000 permutations; takes awhile)
+
+corW <- cor_sessions_indiv_W(refit)%>% rf
+actual <- cor_sessions_W(refit$W) %>% rf
+nul <- null_W_cor(refit, 10000) %>% rf
+
+x <- nul %>% 
+  group_by(component) %>% 
+  summarize(mean = mean(estimate), std = sd(estimate))
+
+z <- tibble(component = actual$component, 
+  actual=actual$estimate, 
+  null_mean = x$mean, 
+  null_std = x$std)
+
+z <- mutate(z, zscore=(actual-null_mean)/null_std)
+
+
+# make sure unit type isn't a confound in traitlikeness
+ids <- filter(demo, unittype==1)$nsrrid
+refit_unit1 <- refit
+refit_unit1$W <- refit$W %>% 
+  split_id() %>%
+  filter(nsrrid %in% ids) %>%
+  unite_id()
+
+corW <- cor_sessions_indiv_W(refit_unit1)%>% rf
+actual <- cor_sessions_W(refit_unit1$W) %>% rf
+nul <- null_W_cor(refit, 10000) %>% rf
+
+x <- nul %>% 
+  group_by(component) %>% 
+  summarize(mean = mean(estimate), std = sd(estimate))
+
+z_unit1 <- tibble(component = actual$component, 
+  actual=actual$estimate, 
+  null_mean = x$mean, 
+  null_std = x$std)
+
+z_unit1 <- mutate(z_unit1, zscore=(actual-null_mean)/null_std)
+
+# Build Table 1
+
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+#Figure 1
+plot_W_all(refit$W)
+
+plot_baseline_followup_W(refit$W, c(300002, 300041))
+plot_baseline_followup_W(refit$W, c(300264, 300282))
+plot_z(z)
+plot_z(z_unit1)
+
+
+# Figure 4
+gg <- ggplot(H_chat_pr, aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line', size=1)+facet_wrap(~component, nrow=6, scales='free')+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed')+
+ggtitle('ChAT NMF')
+
+
+gg2 <- ggplot(H_cfs_pr, aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line', size=1)+facet_wrap(~component,nrow=6, scales = 'free')+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed')+ggtitle('CFS NMF')
+
+
+gg3 <- ggplot(chat_pr_bands,aes(x=E, y=value, color=factor(CYCLE))) + 
+stat_summary(geom='line', size=1)+facet_wrap(~component, nrow=6, scales='free')+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed')+ggtitle('ChAT fixed bands')
+
+
+gg4 <- ggplot(cfs_pr_bands,aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line', size=1)+facet_wrap(~component, nrow=6, scales='free')+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed') +ggtitle('CFS fixed bands')
+
+stylize(gg)+stylize(gg3) + plot_layout(guides='collect')
+stylize(gg2)+stylize(gg4)+ plot_layout(guides='collect')
+
+# check kids for theta
+ggplot(H_chat_pr_demo,aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line', size=1)+facet_grid(ageyear_at_meas~component)+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed') 
+
+H_cfs_pr_demo <- H_cfs_pr_demo %>% ungroup() %>% mutate(age_category = cut_number(age, 10)) %>% filter(component=='Theta')
+H_chat_pr_demo <- H_chat_pr_demo %>% ungroup() %>% filter(component=='Theta') %>% filter(ageyear_at_meas != 10)
+
+ggage <- ggplot(H_cfs_pr_demo,aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line')+facet_wrap(~age_category, nrow=2)+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed')
+stylize(ggage)
+
+ggage2 <- ggplot(H_chat_pr_demo,aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line')+facet_wrap(~ageyear_at_meas, nrow=1)+
+geom_vline(xintercept=0, alpha=0.5, linetype='dashed')
+stylize(ggage2)
+
+# stats
+H_chat_theta_stats <- H_chat_pr_demo %>% 
+unite_id() %>%
+mutate(period = cut(E, breaks=c(-51, 0, 21))) %>%
+group_by(ID, period, CYCLE) %>%
+summarize(mean = mean(value)) %>%
+pivot_wider(names_from = 'period', values_from = 'mean') %>%
+rename(pre=`(-51,0]`, post=`(0,21]`) %>%
+mutate(diff = post-pre) %>% 
+split_id() %>% 
+left_join(demo)
+
+H_cfs_theta_stats <- H_cfs_pr_demo %>% 
+unite_id() %>%
+mutate(period = cut(E, breaks=c(-51, 0, 21))) %>%
+group_by(ID, period, CYCLE) %>%
+summarize(mean = mean(value)) %>%
+pivot_wider(names_from = 'period', values_from = 'mean') %>%
+rename(pre=`(-51,0]`, post=`(0,21]`) %>%
+mutate(diff = post-pre) %>% 
+split_id() %>% 
+left_join(demo_cfs)
+
+ggplot(H_chat_theta_stats, aes(x=factor(male), y=diff))+
+ggbeeswarm::geom_beeswarm()+facet_grid(ageyear_at_meas~CYCLE)
+
+ggplot(H_chat_theta_stats %>% filter(race3 != 3), aes(x=CYCLE, y=diff, color=factor(race3)))+
+stat_summary()+facet_wrap(~ageyear_at_meas)
+
+ggplot(H_cfs_theta_stats, aes(x=CYCLE, y=diff, color=factor(BLACK)))+
+stat_summary_bin()+facet_wrap(~age_category)
+
+chat_diff_theta_stats <- H_chat_theta_stats %>% 
+group_by(ageyear_at_meas) %>%
+group_modify(~tidy(t.test(diff ~ male, .)))
+
+
+
+
+
+# fix later
+cfs_diff_theta_stats <- H_cfs_theta_stats %>%
+ungroup() %>%
+group_by(age_category) %>%
+group_modify(~tidy(t.test(diff ~ factor(SEX), .)))
+
+
+#(stylize(gg) | stylize(gg2)) / (stylize(gg3) | stylize(gg4)) + plot_layout(guides='collect')
+
+
+# Supplemental
+p1 <- plot_session_histogram(corW)
+p2 <- plot_session_histogram(corW2)
+(p1+ggtitle("Individuals", 
+            subtitle= "NMF1"))/(p2+ggtitle('',subtitle='NMF2'))
+p3 <- plot_shuffle_W(actual, nul)
+p4 <- plot_shuffle_W(actual2, nul2)
+(p3+ggtitle("Shuffled mean", 
+            subtitle="NMF1"))/(p4+ggtitle('',subtitle='NMF2'))
+
+# supplemental
+plot_W_session(refit2$W)

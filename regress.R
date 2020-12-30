@@ -23,10 +23,9 @@ print(lhs)
 regressed <- tibble()
 for (clmn in colnames(regressors)){
   # need to drop NA here rather than in regressors...
-  variables <- c(clmn, 'ageyear_at_meas',
-                 'as.factor(race3)',
-                 'male',
-                 'as.factor(unittype)'
+  variables <- c(clmn, 'age',
+                 'race',
+                 'SEX'
                  )
   #' variables <- c(clmn, 'age',
   #'                'as.factor(race)',

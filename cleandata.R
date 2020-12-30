@@ -89,6 +89,9 @@ unite_id <- function(df){
   df %>% unite('ID', study, session, nsrrid, sep='-')
 }
 
+
+  
+
 subcycles <- function(df){
   subcyc <- df %>% 
     select(B,E,PSD,nsrrid) %>%
@@ -129,7 +132,7 @@ get_rem2 <- function(df, cycle=1){
 rem_duration <- function(df, cycle = 1){
   get_rem(df, cycle = cycle) %>%
     summarize(duration = n()/2) %>%
-    filter(component=='V1') %>%
+    filter(component=='Slow') %>%
     select(ID, duration)
 }
 
@@ -140,13 +143,32 @@ rem_duration2 <- function(df, cycle=1){
     select(ID, duration)
 }
 
+# combine alpha/theta and reorder factors
+band_factors <- function(bands){
+   bands %>% pivot_wider(names_from=component, values_from=value) %>%
+    mutate(Theta = ALPHA + THETA) %>%
+    rename(Beta = BETA, Gamma = GAMMA, Delta=DELTA, Slow=SLOW, Sigma=SIGMA) %>%
+    select(-ALPHA, -THETA) %>%
+    pivot_longer(cols=c(Slow, Delta, Theta, Sigma, Beta, Gamma), 
+                 names_to = 'component', values_to='value') %>%
+    rf()
+}
+
 # multicomponent
-get_prerem <- function(df, cycle = 1, n_epochs=50){
+get_prerem <- function(df, n_nrem_epochs=50, n_rem_epochs=20){
+  prerem <- NULL
+  for (cycle in seq(4)){
   n_components <- length(unique(df$component))
-  df %>% group_by(ID,component) %>%
+  pr <- df %>% group_by(ID,component) %>%
   filter(CYCLE==cycle) %>%
-    filter(row_number() < first(which(STAGE_N==0))) %>%
-    filter(E > max(E)-n_epochs)
+    filter(row_number() < first(which(STAGE_N==0)+n_rem_epochs)) %>%
+    filter(E > max(E)-(n_nrem_epochs+n_rem_epochs)) %>%
+    group_by(component, ID, CYCLE) %>%
+    mutate(E= E-min(E)-n_nrem_epochs) %>%
+    mutate(value = normalize(value))
+  prerem <- rbind(prerem, pr)
+  }
+  prerem
 }
 
 # for single-component signals
@@ -157,6 +179,9 @@ get_prerem2 <- function(df, cycle = 1, n_epochs=50){
     filter(E > max(E)-n_epochs) %>%
     mutate(E = E-min(E)-n_epochs)
 }
+
+#debug (from stackoverflow)
+find_na <- function(DF){ DF[is.na(DF$PSD),]}
 
 tvr <- function(x) denoise1(x, lambda=1e30)
 tv <- function(x, l) denoise1(x, lambda=l)
@@ -170,4 +195,9 @@ dx <- function(x) denoise1(x, lambda=1e-30)
 tvrd1 <- function(x) denoise1(c(diff(x)[1],diff(x)), lambda=1e30)
 diffx <- function(x) c(diff(x),diff(x)[length(diff(x))])
 loessx <- function(x,t) predict(loess(x~t, span = 0.1))
+
+H_chat_pr <- get_prerem(H_chat)
+gg <- ggplot(H_chat_pr, aes(x=E, y=value, color=component))+stat_summary()+facet_wrap(~CYCLE)
+stylize(gg)
+
 

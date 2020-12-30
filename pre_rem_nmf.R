@@ -8,8 +8,9 @@ library(patchwork)
 
 # TO DO: get COMP x CYCLE table
 
-comp <- c('V1','V2','V3','V4','V5','V6')
-cyc <- 5
+#comp <- c('V1','V2','V3','V4','V5','V6')
+comp <- c('Slow', 'Delta', 'Theta', 'Sigma', 'Beta', 'Gamma')
+cyc <- 4
 n_epochs <- 50
 n_components <- 2
 
@@ -18,7 +19,8 @@ n_components <- 2
 #Hw <- Hall6_wake %>% split_id()
 #hyp <- select(hypno, ID, E, CYCLE) %>% collect() %>% split_id()
 #hypnoH <- left_join(Hw, hyp) %>% unite_id()
-#hypnoH <- left_join(refit$H, hypno10)
+refit <- reorder_factors6(refit)
+hypnoH <- left_join(refit$H, hypno) 
 prerem <- get_prerem(hypnoH, cycle=cyc, n_epochs = n_epochs) %>% 
   filter(ID != 'chat-followup-300853') 
 
@@ -86,8 +88,8 @@ durreg <- left_join(V, rem_dur)
 durreg <- mutate_if(durreg, is.numeric, outliers)
 durreg <- mutate_if(durreg, is.numeric, outliers) %>% drop_na()
 durreg_regress <- durreg %>% split_id()
-durreg_regress <- left_join(durreg_regress, select(demo, c(nsrrid, ageyear_at_meas, race3, male))) %>%
-  mutate(race3 = factor(race3))
+durreg_regress <- left_join(durreg_regress, 
+                            select(demo, c(nsrrid, age, race, sex)))
 print(COMP)
 
 print(tidy(lm(duration ~ ., data=select(durreg_regress, -nsrrid, -study, -session))))
