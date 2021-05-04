@@ -10,7 +10,7 @@ library(patchwork)
 
 #comp <- c('V1','V2','V3','V4','V5','V6')
 comp <- c('Slow', 'Delta', 'Theta', 'Sigma', 'Beta', 'Gamma')
-cyc <- 4
+cyc <- 1
 n_epochs <- 50
 n_components <- 2
 

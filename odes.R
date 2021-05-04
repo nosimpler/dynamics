@@ -30,16 +30,14 @@ loes <- function(x) {
 
 sindify <- function(Hall) {
   Hall %>% 
-  #truncate_to_cycle(cyc=1, n_epochs=200) %>%
-  get_prerem(cycle=1) %>%
     group_by(ID, component) %>%
-  filter(length(E) ==50) %>%
+  #filter(length(E) >=50) %>%
   pivot_wider(names_from='component') %>%
   group_by(ID) %>%
   arrange(ID,E) %>%
   
   #select(-V1,-V6) %>%
-  #  drop_na() %>%
+  drop_na() %>%
   #mutate(across(starts_with('V'), ~pow10(.x), .names='{col}')) #%>%
   mutate(across(starts_with('V'), ~tv(.x, 100), .names="r{col}")) %>%
     # replace argument with 'delta' component (rV3 in 6-component, rV2 in 4-component)
@@ -81,27 +79,28 @@ sindify <- function(Hall) {
  # select(-rsum) %>%
   mutate(across(starts_with('r'), diffx, .names='d{col}'))
 }
-hypnoH <- left_join(refit$H, hypno, copy=TRUE)
-H_sindy <- sindify(hypnoH %>% filter(ID != 'chat-followup-300853'))
-IDs <- unique(H_sindy$ID)
-B <- list()
-eigs <- list()
-r_pl <- list()
-H_plot <- pivot_longer(H_sindy, contains('V'), names_to = 'V', values_to = 'value') 
-for (id in IDs){
-  print(id)
-  H_pl <- H_plot %>%
-    filter(ID==id)
-  W_pl <- filter(refit$W, ID==id)
-  # for plotting: r is regularized
-  r_pl[[id]] <- filter(H_pl, str_locate(V, 'r')==1)
-  # d is differentiated
-  d_pl <- filter(H_pl, str_locate(V, 'd')==1)
-  # s -- signal
-  s_pl <- filter(H_pl, str_locate(V, 'V')==1)
 
-
-
+  
+run_sindy_all <- function(H_sindy, W){
+  IDs <- unique(H_sindy$ID)
+  B <- list()
+  eigs <- list()
+  r_pl <- list()
+  H_plot <- pivot_longer(H_sindy, contains('V'), names_to = 'V', values_to = 'value') 
+  for (id in IDs){
+    print(id)
+    H_pl <- H_plot %>%
+      filter(ID==id)
+    W_pl <- filter(refit$W, ID==id)
+    # for plotting: r is regularized
+    r_pl[[id]] <- filter(H_pl, str_locate(V, 'r')==1)
+    # d is differentiated
+    d_pl <- filter(H_pl, str_locate(V, 'd')==1)
+    # s -- signal
+    s_pl <- filter(H_pl, str_locate(V, 'V')==1)
+    
+    
+    
     mat_sindy <- filter(H_sindy, ID==id) %>% ungroup() %>%
       select(starts_with('r')) %>%
       as.matrix()
@@ -120,7 +119,7 @@ for (id in IDs){
     B[[id]] <- sindy_fit$B
     reconst <- as.matrix(sindy_fit$Theta) %*% as.matrix(sindy_fit$B)
     reconst <- as.tibble(reconst)
-
+    
     reconst <- pivot_longer(reconst, everything(), names_to = 'V')
     d_pl$reconst <- reconst$value
     ps <- ggplot(s_pl, aes(x = E,
@@ -128,20 +127,20 @@ for (id in IDs){
                            color=V))+
       geom_line()+
       geom_line(data=r_pl[[id]], aes(x=E,
-                                  y=value,
-                                  group=V), color='grey')+
+                                     y=value,
+                                     group=V), color='grey')+
       facet_wrap(~V, nrow=2)+ scale_color_brewer(palette='Set1')
     pr <- ggplot(r_pl[[id]], aes(x = E,
-                           y=value,
-                           color=V))+
+                                 y=value,
+                                 color=V))+
       geom_line() + scale_color_brewer(palette='Set1')
     pd <- ggplot(d_pl, aes(x = as.numeric(row.names(d_pl)),
                            y=value,
                            color=V))+
       geom_line()+ scale_color_brewer(palette='Set1')
     pre <- ggplot(d_pl, aes(x=E,
-                               y=reconst,
-                               color=V))+
+                            y=reconst,
+                            color=V))+
       geom_line()+ scale_color_brewer(palette='Set1')
     pw <- ggplot(W_pl, aes(x=FR, y=value, color=component))+
       geom_line()+ scale_color_brewer(palette='Set1')
@@ -156,19 +155,30 @@ for (id in IDs){
     Bt$RHS <- rownames(B[[id]])
     Bt <- Bt %>% pivot_longer(c(-ID, -RHS), names_to='LHS')
     Btib <- bind_rows(Btib, Bt)
+  }
+list(H = H_plot, W = refit$W, B = Btib)
 }
-
 # compare baseline to followup
 compare_sessions <- function(df) {
   df %>% pivot_wider(names_from=session, values_from=value)
 }
 
-# plot rescaled
-ggplot(filter(H_plot, str_detect(V, 'rV'), 
-              !str_detect(V,'drV')), 
-       aes(x=E,y=value, color=V))+
-  stat_summary_bin()+scale_color_brewer(palette='Set1')
 
+
+
+
+# plot rescaled
+ggplot(filter(H_plot %>% mutate(V = recode(V, V1='I', V2='II', V3='III')), str_detect(V, 'I'), 
+              !str_detect(V,'rV')), 
+       aes(x=E,y=value, color=V))+
+  stat_summary_bin(bins=70)+scale_color_brewer(palette='Set1')+
+  geom_smooth()+
+  geom_vline(xintercept=5/7)
+plot_W_all(refit$W %>% 
+             mutate(component = recode(component,
+                                       V1 = "I",
+                                       V2 = "II",
+                                       V3 = "III"))) + scale_color_brewer(palette='Set1')
 
 Bout <- Btib %>% 
   #filter(abs(value) < 0.3) %>% 
@@ -178,8 +188,8 @@ Bout <- Btib %>%
 
 
 
-ggplot(Bout, aes(x=outliers(value)))+
-  geom_histogram()+facet_grid(LHS~RHS)+
+ggplot(Bout, aes(x=outliers(value), fill=session))+
+  geom_histogram(position='identity', alpha=0.5)+facet_grid(LHS~RHS)+
   geom_vline(aes(xintercept=0), color='red', linetype='dashed')
 
 
@@ -191,7 +201,7 @@ wtest <- Bout %>% group_by(LHS, RHS, session) %>%
 ggplot(wtest, aes(x=RHS, y=-log10(p.value), fill=RHS, color=RHS,alpha=session))+
   geom_col(position='dodge')+
   facet_wrap(~LHS, scales='free')+
-  geom_hline(aes(yintercept=-log10(0.05/32)), color='black', linetype='dashed')+
+  geom_hline(aes(yintercept=-log10(0.05/18)), color='black', linetype='dashed')+
   theme_minimal()+
   scale_fill_brewer(palette='Set1')+scale_color_brewer(palette='Set1')
 

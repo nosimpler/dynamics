@@ -20,6 +20,7 @@ regress_all <- function(wdemo, lhs){
     select_if(nonunique_factors)
     #mutate(race3 = as.factor(race3), male=as.factor(male)) 
 print(lhs)
+print(regressors)
 regressed <- tibble()
 for (clmn in colnames(regressors)){
   # need to drop NA here rather than in regressors...

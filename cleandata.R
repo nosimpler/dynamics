@@ -81,6 +81,7 @@ integrate_ode_fit <- function(){
 # split recording id into study, session, nsrrid
 split_id <- function(df){
   df %>% separate(ID, c('study', 'session', 'nsrrid')) %>%
+  mutate(nsrrid = gsub("[^0-9.-]", "", nsrrid)) %>%
   mutate(nsrrid = as.numeric(nsrrid))
 }
 
@@ -155,18 +156,34 @@ band_factors <- function(bands){
 }
 
 # multicomponent
-get_prerem <- function(df, n_nrem_epochs=50, n_rem_epochs=20){
+get_prerem <- function(df, n_nrem_epochs=50, n_rem_epochs=10, ncyc = 1){
   prerem <- NULL
-  for (cycle in seq(4)){
+  for (cycle in seq(ncyc)){
   n_components <- length(unique(df$component))
   pr <- df %>% group_by(ID,component) %>%
   filter(CYCLE==cycle) %>%
-    filter(row_number() < first(which(STAGE_N==0)+n_rem_epochs)) %>%
+    filter(row_number() < first(which(STAGE_N==0))+n_rem_epochs) %>%
     filter(E > max(E)-(n_nrem_epochs+n_rem_epochs)) %>%
     group_by(component, ID, CYCLE) %>%
     mutate(E= E-min(E)-n_nrem_epochs) %>%
     mutate(value = normalize(value))
   prerem <- rbind(prerem, pr)
+  }
+  prerem
+}
+
+get_prerem_mouse <- function(df, n_nrem_epochs=50, n_rem_epochs=10){
+  prerem <- NULL
+  for (cycle in seq(1)){
+    n_components <- length(unique(df$component))
+    pr <- df %>% group_by(ID,component) %>%
+      filter(CYCLE==cycle) %>%
+      filter(row_number() < first(which(STAGE_N==0)+n_rem_epochs)) %>%
+      filter(E > max(E)-(n_nrem_epochs+n_rem_epochs)) %>%
+      group_by(component, ID, CYCLE) %>%
+      mutate(E= E-min(E)-n_nrem_epochs) %>%
+      mutate(value = normalize(value))
+    prerem <- rbind(prerem, pr)
   }
   prerem
 }
@@ -196,8 +213,6 @@ tvrd1 <- function(x) denoise1(c(diff(x)[1],diff(x)), lambda=1e30)
 diffx <- function(x) c(diff(x),diff(x)[length(diff(x))])
 loessx <- function(x,t) predict(loess(x~t, span = 0.1))
 
-H_chat_pr <- get_prerem(H_chat)
-gg <- ggplot(H_chat_pr, aes(x=E, y=value, color=component))+stat_summary()+facet_wrap(~CYCLE)
-stylize(gg)
+
 
 

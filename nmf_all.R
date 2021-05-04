@@ -10,30 +10,35 @@ figdir <- '/Users/rl422/dyn/figs/'
 
 
 # first pass through nmf
-nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
+nmf1 <- function(data, 
+                 n_components=6, 
+                 compare_random_seed=FALSE){
 
   
   Hall <- tibble(component=as.character(),
                  value=as.numeric(),
                  ID=as.character(),
                  E=as.numeric(),
-                 STAGE_N=as.numeric())
+                 #STAGE_N=as.numeric()
+                 )
   Wall <- tibble(component=as.character(),
                  value=as.numeric(),
                  ID=as.character(),
                  FR=as.numeric())
   
   IDlist <- distinct(select(data, ID)) %>% collect() %>% arrange()
+  print(IDlist)
   err <- list()
   #err_random_seed <- list()
   # do nmf for each individual
+  
+
+  
   for (id in IDlist$ID) {
     print(id)
     idmat <- data %>%
-      filter(CH == 'C3',
-           ID == id,
-          # STAGE=='NREM2',
-           CYCLE >= 1 #comment this out to include waking periods
+      filter(ID == id
+          # CYCLE >= 1 #comment this out to include waking periods
           ) %>%
       #rename(PSD=MTM) %>%
       #select(E, F, PSD, STAGE_N) %>%
@@ -46,11 +51,14 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
     ungroup() %>% #changed
     select(E,F,PSD) %>%
     pivot_wider(id_cols = F, names_from = E, values_from = PSD)
-   
-  # remove F column
+
+  
+
   # nmf initial conditions
   nH <- ncol(idmat)
   nW <- nrow(idmat)
+  print(nW)
+  print(nH)
   #w0 <- cbind(rep(1.0, nW), rep(1.0, nW), rep(1.0, nW))
   #w0[1, 1] <- 10
   #w0[12, 2] <- 10
@@ -69,8 +77,9 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
   # drop frequency column
   sansf <- idmat[, -1]
   nmat <- matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+  
   init <- nmfModel(n_components, nmat, W = w0, H = h0)
-
+  
   nmffit <- nmf(log(nmat / min(nmat)), n_components, method = 'lee', seed = init)
   if (compare_random_seed == TRUE){
     nmffit_random <- nmf(log(nmat / min(nmat)), n_components, method = 'lee')
@@ -116,15 +125,24 @@ nmf1 <- function(data, n_components=6, compare_random_seed=FALSE){
 
 ######
 # now do nmf on FR x (ID x V) for class membership
-group_nmf <- function(nmf_fits, n_components=6, compare_random_seed=FALSE){
+group_nmf <- function(nmf_fits, 
+                      n_components=6, 
+                      compare_random_seed=FALSE,
+                      plot = FALSE){
   err <- list()
   Y_pop <-nmf_fits$W %>%
     pivot_wider(names_from=c(ID,component), values_from=value)
 
-  nW <- length(unique(nmf_fits$W$FR))
-  nH <- length(unique(nmf_fits$H$ID))*n_components
 
 
+
+  sansf <- select(Y_pop, -FR)
+  Y <-matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+  print(Y)
+  nW <- nrow(Y)
+  nH <- ncol(Y)
+  print(nH)
+  
   h0 <- rep(1.0,nH)
   w0 <- rep(1.0,nW)
   #w0 <- Wgroup
@@ -133,10 +151,7 @@ group_nmf <- function(nmf_fits, n_components=6, compare_random_seed=FALSE){
     w0 <- cbind(w0, rep(1.0,nW))
     w0[i,i] <- 2
   }
-
-
-  sansf <- select(Y_pop, -FR)
-  Y <-matrix(as.numeric(unlist(sansf)), nrow = nrow(sansf))
+  
   init <- nmfModel(n_components,Y, W = w0, H = h0)
   nmffit <- nmf(Y, n_components, method = 'lee', seed = init)
   if (compare_random_seed == TRUE){
@@ -154,12 +169,7 @@ group_nmf <- function(nmf_fits, n_components=6, compare_random_seed=FALSE){
   Hpop <- separate(Hpop, IDvec, 
                  into=c('study','condition','ID','component'))
 
-  # plot(Wgroup[,1],type='l', col='red')
-  # lines(Wgroup[,2], col='green')
-  # lines(Wgroup[,3], col='blue')
-  # lines(Wgroup[,4], col='violet')
-  # lines(Wgroup[,5], col='brown')
-  # lines(Wgroup[,6], col='pink')
+  matplot(Wgroup)
   pairs(t(Hgroup))
   groupfit <- list()
   groupfit$W <- Wgroup
@@ -168,8 +178,14 @@ group_nmf <- function(nmf_fits, n_components=6, compare_random_seed=FALSE){
   groupfit
 }
 
-nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
+nmf2 <- function(data, 
+                 Wgroup, 
+                 n_components=6, 
+                 compare_random_seed=FALSE,
+                 plot = FALSE){
   
+
+  print(data)
   Hall <- tibble(component=as.character(),
                  value=as.numeric(),
                  ID=as.character(),
@@ -185,18 +201,18 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
   # do nmf for each individual
   for (id in IDlist$ID) {
     print(id)
-    idmat <- datahyp %>%
+    idmat <- data %>%
       #filter(str_detect(ID, 'baseline')) %>%
-      filter(CH == 'C3',
-             ID == id,
+      filter(ID == id,
              # STAGE=='NREM2',
-             CYCLE >= 1
+            # CYCLE >= 1
       ) %>%
-      select(E, F, PSD, STAGE_N) %>%
+      select(E, F, PSD) %>%
       arrange(E, F) %>% collect()
+    if (nrow(idmat)==0) next
     epochs <- unique(idmat$E)
     fr <- unique(idmat$F)
-    stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
+    #stage_n <- idmat %>% filter(F==min(F)) %>% select(STAGE_N)
     idmat <- idmat %>% 
       ungroup() %>% #changed
       select(E,F,PSD) %>%
@@ -238,7 +254,7 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
     resultsW$FR <- fr
     resultsW$ID <- id
     resultsH$ID <- id
-    resultsH$STAGE_N <- stage_n$STAGE_N
+    #resultsH$STAGE_N <- stage_n$STAGE_N
     
     #rename hack
     resultsW <- resultsW %>% 
@@ -255,13 +271,14 @@ nmf2 <- function(data, Wgroup, n_components=6, compare_random_seed=FALSE){
                    names_to='component', 
                    values_to = 'value')
     Hall <- add_row(Hall, resultsH)
-    graphics.off()
+    if (plot==TRUE){graphics.off()
     p1 <- ggplot(resultsW, aes(x=FR,y=value,color=component))+
       geom_line()
     
     p2 <- ggplot(resultsH, aes(x=E,y=value,color=component))+
       geom_line()
     plot(p1/p2)
+    }
     #ggsave(paste(figdir, id, '_withwake.pdf',sep=''))
   }
   list(H=Hall, W=Wall, err=err)
@@ -271,8 +288,7 @@ nmf_indiv <- function(datahyp, id, n_components=6){
   
     print(id)
     idmat <- datahyp %>%
-      filter(CH == 'C3',
-             ID == id,
+      filter(ID == id,
              # STAGE=='NREM2',
              #CYCLE >= 1
       ) %>%
@@ -363,29 +379,81 @@ nmf_indiv <- function(datahyp, id, n_components=6){
 
 unfold_err <- function(err){
   error_diff <- c()
+  random_err <- 0
+  fixed_err <- 0
   for (i in err){
     print(i)
     error_diff = rbind(error_diff, i$random - i$fixed)
+    random_err <- random_err + i$random
+    fixed_err <- fixed_err + i$fixed
   }
+  print(paste('mean random seed error', random_err/nrow(error_diff))) # mean random-seed error
+  print(paste('mean fixed seed error', fixed_err/nrow(error_diff))) # mean fixed-seed error
   tibble(ID=names(err), err_diff=error_diff)
 }
 
-n_components <- 6
-nmf_fit <- nmf1(datahyp, 
-                n_components=n_components, 
-                compare_random_seed = TRUE)
-groupfit <- group_nmf(nmf_fit, 
-                      n_components=n_components, 
-                      compare_random_seed=TRUE)
-refit <- nmf2(datahyp, groupfit$W, 
-              n_components=n_components, 
-              compare_random_seed = TRUE)
 
-err_diff <- unfold_err(nmf_fit$err)
-ggplot(err_diff, aes(x=err_diff))+
-  geom_histogram(bins=100)+
-  xlim(-100,100)
-err_diff_refit <- unfold_err(refit$err)
-ggplot(err_diff_refit, aes(x=err_diff))+
-  geom_histogram(bins=100)+
-  xlim(-1000,1000)
+n_components <- 6
+# 
+# #mouse-specific
+#  data <- psd %>% 
+#    group_by(ID,E) %>% 
+#    filter(sum(PSD)>0) %>% 
+#    filter(CH == 'EEG_EEG1A-B') %>%
+#    left_join(hypno) %>%
+#    filter(STAGE_N == -2) %>%
+#    ungroup()
+# 
+# nmf_fit <- nmf1(data %>% filter(ID != "38152_DarkCycle"), 
+#                 n_components=n_components, 
+#                 compare_random_seed = TRUE)
+# groupfit <- group_nmf(nmf_fit,
+#                       n_components=n_components,
+#                       compare_random_seed=TRUE)
+# refit <- nmf2(data %>% filter(ID != "38152_DarkCycle"), groupfit$W,
+#              n_components=n_components,
+#              compare_random_seed = TRUE)
+# save.image(file = 'mouse-6-NREM.RData')
+
+
+# data <- datahyp %>% 
+#   filter(CH == 'C3') %>%
+#   filter(STAGE_N < 0) %>%
+#   ungroup()
+# 
+# nmf_fit <- nmf1(data, 
+#                 n_components=n_components, 
+#                 compare_random_seed = TRUE)
+# groupfit <- group_nmf(nmf_fit,
+#                       n_components=n_components,
+#                       compare_random_seed=TRUE)
+# refit <- nmf2(data, groupfit$W,
+#               n_components=n_components,
+#               compare_random_seed = TRUE)
+# save.image(file = 'chat-6-NREM.RData')
+
+# mros
+# nmf_fit <- nmf1(psd, 
+#                 n_components=n_components, 
+#                 compare_random_seed = FALSE)
+# groupfit <- group_nmf(nmf_fit,
+#                       n_components=n_components,
+#                       compare_random_seed=FALSE)
+refit <- nmf2(psd, groupfit$W,
+              n_components=n_components,
+              compare_random_seed = FALSE)
+save.image(file = 'mros-6-NREM2.RData')
+
+#
+# err_diff <- unfold_err(nmf_fit$err)
+# ggplot(err_diff, aes(x=err_diff))+
+#   geom_histogram(bins=100)+
+#   xlim(-100,100)
+# err_diff_refit <- unfold_err(refit$err)
+# ggplot(err_diff_refit, aes(x=err_diff))+
+#   geom_histogram(bins=100)+
+#   xlim(-1000,1000)
+# err_diff %>% filter(err_diff > 0) %>% summarize(n = n())
+
+
+

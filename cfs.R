@@ -9,7 +9,7 @@ load_cfs_bands <- function(){
   df <- read_table2('~/dyn/data/cfs/PSD-E_B_CH.txt', guess_max = 1000000) %>%
     drop_na() %>%
     select(-RELPSD) %>%
-    rename(component=B, value=PSD) %>%
+    #rename(component=B, value=PSD) %>%
     left_join(hypno_cfs %>% select(ID, E, CYCLE, STAGE_N)) %>%
     filter(CYCLE >=1)
     
@@ -45,6 +45,10 @@ load_so<- function(){
 
 load_spindles <- function(){
   df <- read_table2('~/dyn/data/cfs/SPINDLES-E_F_CH.txt', guess_max=1000000)  
+}
+
+load_spindle_so_coupling <- function(){
+  df <- read_table2('~/dyn/data/cfs/SPINDLES-F_CH_THR.txt', guess_max=1000000)  
 }
 
 load_psd_clean <- function() {

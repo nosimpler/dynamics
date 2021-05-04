@@ -25,7 +25,8 @@ stylize <- function(gg){
 
 plot_W_all <- function(W){
   gg <- ggplot(W, aes(x=FR,y=value, color=component))+
-    geom_point(size=0.5, alpha=0.1)+
+    #geom_point(size=0.5, alpha=0.1)+
+    geom_point(size=2, alpha=0.4)+
     stat_summary(geom='path', size=2)+
     #geom_ribbon(aes(ymin = quantile.0.05, ymax = quantile.0.95, fill = "05%-95%"), alpha = .25)+
     ylab('w (normalized)')+
@@ -257,7 +258,7 @@ order_nmf_factors <- function(H,W){
 }
 
 get_yhw <- function(db, nmffit, id) {
-  Y <- datahyp %>% filter(ID==id) %>% collect() %>%
+  Y <- db %>% filter(ID==id) %>% collect() %>%
     rename(FR=F)
   H <- nmffit$H %>% filter(ID==id)
   W <- nmffit$W %>% filter(ID==id)
@@ -407,6 +408,80 @@ plot_contin_fr <- function(W, fr, component, demo, var){
   stylize(p1)/stylize(p2)
 }
 
+plot_W_corr <- function(W_chat) {
+  corr <- W_chat %>% split_id() %>%
+    pivot_wider(names_from = session, values_from = value) %>%
+    group_by(component, FR) %>%
+    #mutate(baseline = outliers(baseline), followup = outliers(followup)) %>%
+    mutate(baseline = outliers(DarkCycle), followup = outliers(LightCycle)) %>%
+    mutate(variance = 
+             var(baseline, na.rm=TRUE)+
+             var(followup, na.rm=TRUE)) %>%
+    filter(variance > 0.000002) %>%
+    #group_modify(~tidy(cor.test(.$baseline, .$followup)))%>%
+    group_modify(~tidy(cor.test(.$DarkCycle, .$LightCycle)))
+  
+  p <- ggplot(corr, aes(x=FR, 
+                        y=estimate, 
+                        ymin=conf.low, 
+                        ymax=conf.high, 
+                        color=factor(component)))+
+    geom_linerange()+
+    geom_point(size=0.5)+ 
+    facet_wrap(~component)
+  stylize(p)+theme(legend.position='none')
+}
+
+plot_coupling_z <- function(spso, W_cfs){
+  stylize(ggplot(spso %>%
+                   rename(FR=F) %>%
+                   filter(FR == 15) %>%
+                   left_join(W_cfs %>% filter(component=='Delta')), 
+                 aes(x=value, y=COUPL_ANGLE))+
+            geom_point()+geom_smooth(method='lm')+
+            ggpmisc::stat_fit_glance(method = "lm", 
+                                     method.args = list(formula = y~x),
+                                     label.x = "right",
+                                     label.y = "bottom",
+                                     aes(label = paste("italic(P)*\"-value = \"*", 
+                                                       signif(stat(p.value)*600, digits = 4),
+                                                       sep = "")),
+                                     parse = TRUE))
+}
+
+plot_H_corr <- function(H) {
+  Hcorr <- H %>% 
+    group_by(nsrrid, component, STAGE_N) %>%
+    pivot_wider(names_from=component, values_from=value) %>%
+    group_modify(~tidy(cor(.[,4:9]))) %>%
+    pivot_longer(4:9, names_to='component', values_to='value') %>%
+    group_by(component, STAGE_N, .rownames) %>%
+    summarize(meancorr = mean(value, na.rm=TRUE)) %>%
+    filter(STAGE_N %in% c(-3,-2,-1,0,1)) %>% 
+    pivot_wider(names_from=.rownames, values_from=meancorr) %>%
+    rf()
+  for (stage in seq(-3,1)){
+    Hc <- Hcorr %>% filter(STAGE_N == stage) %>% as.data.frame()
+    rownames(Hc) <- Hc$component
+    p <- ggcorrplot::ggcorrplot(Hc[,3:8], 
+                                type='lower',
+                                lab='true')
+    print(p+ggtitle(stage,))
+  }
+    
+    
+    summarize(meanH = mean(value)) %>%
+    group_by(component,STAGE_N) %>%
+    pivot_wider(names_from=component, values_from=meanH) %>%
+    group_modify(~tidy(cor(.))) %>%
+    round(2)
+  
+}
+
+plot_factor_band_corr <- function(H, bandpower){
+  
+}
+
 #chatbase <- W_chat %>% 
 #  split_id() %>% 
  # filter(session == 'baseline') %>%
@@ -426,22 +501,62 @@ plot_contin_fr <- function(W, fr, component, demo, var){
 # #plot_W_all(refit2$W)
 # #plot_baseline_followup_W(refit2$W, 
 #                   #       c(300004, 300007, 300037, 300041,300043,300051))
-f <- 15.5
-component2 <- 'Beta'
-var <- 'SLEEPMED'
-demo_cfs2 <- demo_cfs #%>% mutate(cystatinc = cut_number(cystatinc, 2))
-
-plot_demo_fr(W_cfs, f, component2, demo_cfs2, var)
-demo2 <- demo_cfs2 #%>%
- #mutate(age = cut_number(age,2))
-plot_demo_classes(W_cfs, demo2, var)
-
-
-
-df <- join_var(W_cfs, demo2, var) %>% drop_na() %>%
-  filter(component==component2, FR==f)
-coin::independence_test(formula=value~SLEEPMED, data=df)
-kruskal.test(formula=value~SLEEPMED, data=df)
+# f <- 11
+# component2 <- 'V3'
+# var <- 'age'
+# demo_cfs2 <- demo #%>% mutate(cystatinc = cut_number(cystatinc, 2))
+# 
+# #plot_demo_fr(refit$W, f, component2, demo_cfs2, var)
+# demo2 <- demo_cfs2 #%>%
+#  #mutate(age = cut_number(age,2))
+# plot_demo_classes(W_trt %>% unite_id(),
+#                   demo %>% filter(race3 < 3), 
+#                   'race3')
+# plot_demo_fr(W_trt %>% unite_id(), 
+#              10, 
+#              'Delta', 
+#              demo %>% filter(race3 < 3), 
+#              'ageyear_at_meas')
+# stats <- list()
+# for (fr in seq(from=0.5,to=45, by=0.5)){
+#   for (band in c('Slow', 
+#                 'Delta', 
+#                 'Theta', 
+#                 'Sigma', 
+#                 'Beta',
+#                 'Gamma')){
+#     
+#       st <- W_trt_demo %>% 
+#       rename(age = ageyear_at_meas, SEX = male, race = race3) %>% 
+#       filter(FR == fr, component == band) %>% 
+#       regress_all('value')
+#       print(st)
+#       print(paste("^", band, fr))
+#       stats[[paste(band, fr)]] <- st
+# }}
+# stats_mean <- list()
+# for (stage in unique(H_mean_demo$STAGE_N)){
+#   for (band in c('Slow', 
+#                  'Delta', 
+#                  'Theta', 
+#                  'Sigma', 
+#                  'Beta',
+#                  'Gamma')){
+#     
+#     st <- H_mean_demo %>% 
+#       filter(STAGE_N == stage, component == band) %>%
+#       ungroup() %>%
+#       drop_na(age) %>%
+#       regress_all('meanH')
+#     print(st)
+#     print(paste("^", stage, band))
+#     stats_mean[[paste(band, fr)]] <- st
+#   }}
+# 
+ df <- join_var(refit$W, demo, 'm1lbenzo') %>% drop_na() %>%
+   filter(component=="V2", FR==3)
+coin::independence_test(formula=value~m1lbenzo, data=df)
+# kruskal.test(formula=value~race3, data=df)
 # plot_demo_fr(W_cfs, 10.5, 'Slow', demo2, 'ess')
 # plot_demo_fr(W_cfs, 12.5, 'Sigma', demo2, 'ess')
 #plot_demo_fr(chatbase, 20, 'Beta', demo2, 'das5a')

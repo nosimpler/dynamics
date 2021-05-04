@@ -1,38 +1,50 @@
 library(broom)
 library(purrr)
 # get correlation for 
-cor_sessions_W <- function(W){
-  W %>% split_id %>%
-    pivot_wider(names_from='session', values_from = 'value') %>%
-    group_by(component) %>%
-    group_modify(~tidy(cor.test(.$baseline,.$followup)))
-}
 
-cor_sessions_indiv_W <- function(nmf_fit){
-  
-    nmf_fit$W %>% split_id %>%
-      pivot_wider(names_from='session', values_from = 'value') %>%
-      group_by(nsrrid, component) %>%
-      drop_na() %>%
-      group_modify(~tidy(cor.test(.$baseline,.$followup)))
-}
-
-permute_ID_W <- function(nmf_fit){
-  W <- nmf_fit$W %>% 
+permute_ID_W <- function(W){
+  W <- W %>% 
     pivot_wider(names_from=c('component','FR'), values_from=value) %>%
-    mutate(ID=sample(ID)) %>%
+    split_id() %>%
+    group_by(session) %>%
+    mutate(nsrrid=sample(nsrrid)) %>%
+    unite_id() %>%
     pivot_longer(-ID,names_to=c('component','FR'), names_sep='_') %>%
     mutate(FR=as.numeric(FR))
 }
-null_W_cor <- function(nmf_fit, n){
-  correl <- NULL
+
+null_W_dist <- function(W, n){
+  distance <- NULL
   for (i in seq(n)){
     print(i)
-    cor <- permute_ID_W(nmf_fit) %>% cor_sessions_W()
-    cor$i <- i
-    correl <- rbind(correl, cor)
+    d <- permute_ID_W(W) %>% test_retest_distance()
+    d$i <- i
+    distance <- rbind(distance, d)
   }
-  correl
+  distance %>% group_by(i, component) %>% 
+    summarize(shuffled_mean = mean(dist))
+}
+
+euc.dist <- function(x1, x2) sqrt(sum((x1 - x2) ^ 2))
+manh.dist <- function(x1, x2) sum(abs(x1-x2))
+
+test_retest_distance <- function(W){
+  W %>% split_id %>%
+    pivot_wider(names_from='session', values_from = 'value') %>%
+    group_by(nsrrid, component) %>%
+    drop_na() %>%
+    summarize(dist = manh.dist(baseline, followup))
+}
+
+W_dist_z <- function(W_chat, nul){
+  actual <- W_chat %>% 
+    test_retest_distance() %>% rf %>%
+    group_by(component) %>% 
+    summarize(actual_mean = mean(dist))
+  z <- nul %>% rf() %>% group_by(component) %>%
+    summarize(null_mean = mean(shuffled_mean), null_std = sd(shuffled_mean)) %>%
+    mutate(actual_mean = actual$actual_mean) %>%
+    mutate(zscore = (actual_mean - null_mean)/null_std)
 }
 
 # reorder factors (sigh)
@@ -78,6 +90,26 @@ null_W <- function(nmf_fit, demo, var, n){
   }
   samples
 }
+
+peaks_indiv <- function(W){
+  W %>% group_by(ID,component) %>% filter(value==max(value))
+}
+
+
+
+
+# peaks <- peaks_indiv(refit$W)
+# peaks_demo <- left_join(peaks %>% split_id(), demo)
+# ggplot(peaks_demo, 
+#        aes(y=age, x=factor(FR)))+
+#   geom_boxplot()+
+#   geom_smooth(method='lm')+
+#   facet_wrap(~component, scales='free')
+# regress_all(peaks_demo %>% 
+#               filter(component=="V2") %>% 
+#               drop_na(value,FR) %>% 
+#               ungroup(), 
+#            "FR")
 #nulW <- null_W(refit, demo, 'male', 3)
 # Wd <- join_var(refit, demo, 'age_category') %>% filter(age_category < 10)
 # Wd15 <- join_var(refit, demo, 'EMPLOY') %>% filter(FR==30)

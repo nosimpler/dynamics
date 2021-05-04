@@ -1,0 +1,72 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+source("~/dyn/src/dynamics/cleandata.R")
+source("~/dyn/src/dynamics/chat0.2.R")
+load(file = "~/dyn/rdata/chat-3-odes.Rdata")
+hypno <- load_hypno()
+H_sindy_chat <- sindify(refit$H  %>% 
+                     left_join(hypno) %>% 
+                     drop_na(value) %>% 
+                     filter(ID != 'chat-followup-300853') %>%
+                     get_prerem(ncyc=1))
+
+#odes_chat <- run_sindy_all(H_sindy_chat, refit$W)
+
+p1 <- ggplot(odes_chat$H %>% filter(!str_detect(V,'r')) %>%
+                      mutate(V = recode(V, 
+                                                V1='I', 
+                                                V2='II', 
+                                                V3='III')
+                             ),
+       aes(x=E,y=value, color=V))+
+  stat_summary_bin(bins=70)+scale_color_brewer(palette='Set1')+
+  geom_smooth()+
+  geom_vline(xintercept=5/6)
+p2 <- plot_W_all(refit$W %>% 
+             mutate(component = recode(component,
+                                       V1 = "I",
+                                       V2 = "II",
+                                       V3 = "III"))) + scale_color_brewer(palette='Set1')
+p1/p2
+
+source("~/dyn/src/dynamics/mouse.R")
+load(file = "~/dyn/rdata/mouse-3-odes.Rdata")
+H_sindy_mouse <- sindify(refit$H  %>% 
+                     left_join(stages) %>% 
+                     mutate(CYCLE=1) %>%
+                     get_prerem_mouse() 
+                   )
+#odes_mouse <- run_sindy_all(H_sindy_mouse, refit$W)
+
+p3 <- ggplot(odes_mouse$H %>% filter(!str_detect(V,'r')) %>%
+                      mutate(V = recode(V, 
+                                                V1='II', 
+                                                V2='I', 
+                                                V3='III')
+                             ),
+       aes(x=E,y=value, color=V))+
+  stat_summary_bin(bins=70)+scale_color_brewer(palette='Set1')+
+  geom_smooth()+
+  geom_vline(xintercept=5/6)
+p4 <- plot_W_all(refit$W %>% 
+             mutate(component = recode(component,
+                                       V1 = "II",
+                                       V2 = "I",
+                                       V3 = "III"))) + scale_color_brewer(palette='Set1')
+p3/p4
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+

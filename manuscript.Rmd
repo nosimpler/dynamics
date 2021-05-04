@@ -11,6 +11,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 # source general data-processing functions
 source("~/dyn/src/dynamics/cleandata.R") 
 source("~/dyn/src/dynamics/proc_stats.R") 
+library(ggsignif)
 
 # source ChAT-specific functions
 source("~/dyn/src/dynamics/chat0.2.R") 
@@ -25,15 +26,18 @@ refit <- reorder_factors6(refit)
 # traitlikeness (10000 permutations; takes awhile)
 
 corW <- cor_sessions_indiv_W(refit)%>% rf
-actual <- cor_sessions_W(refit$W) %>% rf
-nul <- null_W_cor(refit, 10000) %>% rf
+actual <- test_retest_distance(refit$W) %>% rf() %>%
+  group_by(component) %>%
+  summarize(mean = mean(dist), std = sd(dist))
+
+nul <- null_W_dist(refit$W, 10000) %>% rf
 
 x <- nul %>% 
   group_by(component) %>% 
-  summarize(mean = mean(estimate), std = sd(estimate))
+  summarize(mean = mean(shuffled_mean), std = sd(shuffled_mean))
 
 z <- tibble(component = actual$component, 
-  actual=actual$estimate, 
+  actual=actual$mean, 
   null_mean = x$mean, 
   null_std = x$std)
 
@@ -41,27 +45,27 @@ z <- mutate(z, zscore=(actual-null_mean)/null_std)
 
 
 # make sure unit type isn't a confound in traitlikeness
-ids <- filter(demo, unittype==1)$nsrrid
-refit_unit1 <- refit
-refit_unit1$W <- refit$W %>% 
-  split_id() %>%
-  filter(nsrrid %in% ids) %>%
-  unite_id()
+<!-- ids <- filter(demo, unittype==1)$nsrrid -->
+<!-- refit_unit1 <- refit -->
+<!-- refit_unit1$W <- refit$W %>%  -->
+<!--   split_id() %>% -->
+<!--   filter(nsrrid %in% ids) %>% -->
+<!--   unite_id() -->
 
-corW <- cor_sessions_indiv_W(refit_unit1)%>% rf
-actual <- cor_sessions_W(refit_unit1$W) %>% rf
-nul <- null_W_cor(refit, 10000) %>% rf
+<!-- corW <- cor_sessions_indiv_W(refit_unit1)%>% rf -->
+<!-- actual <- cor_sessions_W(refit_unit1$W) %>% rf -->
+<!-- nul <- null_W_cor(refit, 10000) %>% rf -->
 
-x <- nul %>% 
-  group_by(component) %>% 
-  summarize(mean = mean(estimate), std = sd(estimate))
+<!-- x <- nul %>%  -->
+<!--   group_by(component) %>%  -->
+<!--   summarize(mean = mean(estimate), std = sd(estimate)) -->
 
-z_unit1 <- tibble(component = actual$component, 
-  actual=actual$estimate, 
-  null_mean = x$mean, 
-  null_std = x$std)
+<!-- z_unit1 <- tibble(component = actual$component,  -->
+<!--   actual=actual$estimate,  -->
+<!--   null_mean = x$mean,  -->
+<!--   null_std = x$std) -->
 
-z_unit1 <- mutate(z_unit1, zscore=(actual-null_mean)/null_std)
+<!-- z_unit1 <- mutate(z_unit1, zscore=(actual-null_mean)/null_std) -->
 
 # Build Table 1
 
@@ -84,6 +88,126 @@ plot_baseline_followup_W(refit$W, c(300264, 300282))
 plot_z(z)
 plot_z(z_unit1)
 
+#mean H vs. B correlations
+#cfs
+source("~/dyn/src/dynamics/cfs.R")
+hypno_cfs <- load_hypno_cfs()
+cfs_bands <- load_cfs_bands()
+load("~/dyn/rdata/cfs-finalish6.Rdata")
+cfs_all <- left_join(cfs_bands, (refit %>% reorder_factors6())$H) %>% drop_na()
+mean_all <- cfs_all %>% group_by(ID, component,B, STAGE_N) %>% summarize(meanB = mean(log(PSD)), meanH = mean(value))
+
+cor_cfs <- mean_all %>% group_by(component, B) %>% summarize(cor = cor(meanB,   meanH)) %>% mutate(B = factor(B, c('SLOW', 'DELTA', 'THETA','ALPHA','SIGMA','BETA', 'GAMMA'))) %>% 
+arrange(component, B) %>% 
+pivot_wider(names_from = B, values_from = cor) %>% as.data.frame()
+rownames(cor_cfs) <- cor_cfs$component
+
+ggcorrplot::ggcorrplot(as.matrix(cor_cfs[,2:8]), lab=TRUE)+
+theme_minimal()
+
+#chat
+source("~/dyn/src/dynamics/chat0.2.R")
+hypno_chat <- load_hypno()
+chat_bands <- load_chat_bands()
+load("~/dyn/rdata/chat-final6.Rdata")
+chat_all <- left_join(chat_bands, (refit %>% reorder_factors6())$H) %>% drop_na()
+mean_all <- chat_all %>% group_by(ID, component,B, STAGE_N) %>% summarize(meanB = mean(log(PSD)), meanH = mean(value))
+
+cor_chat <- mean_all %>% group_by(component, B) %>% summarize(cor = cor(meanB,   meanH)) %>% mutate(B = factor(B, c('SLOW', 'DELTA', 'THETA','ALPHA','SIGMA','BETA', 'GAMMA'))) %>% 
+arrange(component, B) %>% 
+pivot_wider(names_from = B, values_from = cor) %>% as.data.frame()
+rownames(cor_chat) <- cor_chat$component
+
+ggcorrplot::ggcorrplot(as.matrix(cor_chat[,2:8]), lab=TRUE)+
+theme_minimal()
+
+#mean H vs age
+demo_cfs <- load_demo_cfs()
+demo_meanH <- mean_all %>% 
+split_id() %>%
+left_join(demo_cfs) %>%
+filter(STAGE_N %in% c(-3,-2,-1,0,1)) %>%
+mutate(B = factor(B, c('SLOW', 'DELTA', 'THETA','ALPHA','SIGMA','BETA', 'GAMMA'))) %>% 
+arrange(component, B)
+
+ggplot(demo_meanH, aes(x=age, y=outliers(outliers(meanH))))+
+#stat_summary_bin(bins=5)+
+geom_point(size=0.2, alpha=0.05)+
+geom_smooth(color='black', fill='black')+
+facet_grid(STAGE_N~component, scales='free')+
+theme_minimal()
+
+ggplot(demo_meanH, aes(x=age, y=outliers(outliers(meanB))))+
+#stat_summary_bin(bins=5)+
+geom_point(size=0.2, alpha=0.05)+
+geom_smooth(color='black', fill='black')+
+facet_grid(STAGE_N~B, scales='free')+
+theme_minimal()
+
+# meanH/B sex correlates
+ggplot(demo_meanH, aes(x=factor(SEX), y=outliers(meanH)))+
+stat_summary()+
+#ggpubr::stat_compare_means(size=3)+
+facet_wrap(STAGE_N~component, scales='free')+
+theme_minimal()
+
+sex_statsH <- demo_meanH %>% 
+group_by(component, STAGE_N) %>% 
+select(meanH, nsrrid, component, STAGE_N, SEX) %>%
+mutate(SEX = recode(SEX, '1'='male', '0'='female')) %>%
+group_modify(~tidy(wilcox.test(meanH~SEX, conf.int=TRUE, data=.))) %>%
+select(component, STAGE_N, estimate, conf.low, conf.high, p.value)
+xtable::xtable(sex_statsH)
+
+
+sex_statsB <- demo_meanH %>% 
+group_by(component, STAGE_N) %>% 
+select(meanB, nsrrid, component, STAGE_N, SEX) %>%
+mutate(SEX = recode(SEX, '1'='male', '0'='female')) %>%
+group_modify(~tidy(wilcox.test(meanB~SEX, conf.int=TRUE, data=.)))%>%
+select(component, STAGE_N, estimate, conf.low, conf.high, p.value)
+xtable::xtable(sex_statsB)
+
+ggplot(demo_meanH, aes(fill=factor(SEX), x=outliers(meanB), y=..density..))+
+geom_histogram(position='identity', alpha=0.5, bins=50)+
+#geom_signif(comparisons=list(c('0','1')), map_signif_level=TRUE, margin_top=0.01)+
+facet_grid(STAGE_N~component, scales='free')+
+theme_minimal()
+
+ggplot(demo_meanH, aes(x=factor(SEX), y=outliers(meanB)))+
+stat_summary()+
+#geom_signif(comparisons=list(c('0','1')), map_signif_level=TRUE)+
+facet_wrap(~B, scales='free')+
+theme_minimal()
+
+#within-night H correlations
+#cfs
+within_night_cor <- cfs_all %>% 
+group_by(ID, component, B) %>%
+summarize(cor = cor(value, log(PSD))) %>% 
+group_by(component, B) %>%
+summarize(meancor = mean(cor)) %>%
+mutate(B = factor(B, c('SLOW', 'DELTA', 'THETA','ALPHA','SIGMA','BETA', 'GAMMA'))) %>% 
+arrange(component, B) %>%
+pivot_wider(names_from = B, values_from = meancor) %>% 
+as.data.frame()
+rownames(within_night_cor) <- within_night_cor$component
+ggcorrplot::ggcorrplot(as.matrix(within_night_cor[,2:8]), lab=TRUE)+
+theme_minimal()
+
+#chat
+within_night_cor <- chat_all %>% 
+group_by(ID, component, B) %>%
+summarize(cor = cor(value, log(PSD))) %>% 
+group_by(component, B) %>%
+summarize(meancor = mean(cor)) %>%
+mutate(B = factor(B, c('SLOW', 'DELTA', 'THETA','ALPHA','SIGMA','BETA', 'GAMMA'))) %>% 
+arrange(component, B) %>%
+pivot_wider(names_from = B, values_from = meancor) %>% 
+as.data.frame()
+rownames(within_night_cor) <- within_night_cor$component
+ggcorrplot::ggcorrplot(as.matrix(within_night_cor[,2:8]), lab=TRUE)+
+theme_minimal()
 
 # Figure 4
 gg <- ggplot(H_chat_pr, aes(x=E, y=value, color=factor(CYCLE)))+stat_summary(geom='line', size=1)+facet_wrap(~component, nrow=6, scales='free')+
