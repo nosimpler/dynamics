@@ -1,6 +1,6 @@
-# dynamics
+# sleep_eeg
 
-Sleep EEG dynamics
+Sleep EEG and related dynamics
 
 chat.R: Helper functions specific to CHAT study
 distances.R: DTW distance computations
