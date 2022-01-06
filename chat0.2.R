@@ -11,8 +11,11 @@ demo <- read_csv(demofile)
 
 # sync data
 load_sync <- function(){
-  conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/sync.db")
+  conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/sync_clean.db")
   tbl(conn, 'sync')
+  hyp <- tbl(conn, 'hypno')
+  sync <- tbl(conn, 'sync')
+  hypsync <- left_join(hyp, sync)
 }
 
 # 8 EEG channels, beta 18-25(?)Hz
@@ -129,13 +132,18 @@ reorder_factors6 <- function(nmf_fit){
 #so <- load_so()
 #so <- left_join(hyp, so)
 #DBI::dbWriteTable(conn, "chat-hypno", hyp)
-#conn2 <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/sync.db")
-#hypno <- load_hypno()
+conn <- DBI::dbConnect(RSQLite::SQLite(), "~/dyn/data/chat/tab/sync_clean.db")
+hypno <- load_hypno()
 #DBI::dbWriteTable(conn, "hypno", hypno)
-
+nrem <- tbl(conn, 'nrem')
+rem <- tbl(conn, 'rem')
+wake <- tbl(conn, 'wake')
 hyp <- tbl(conn, 'hypno')
-sync <- tbl(conn, 'sync')
-hypsync <- left_join(hyp, sync)
+hypsync <- union_all(nrem, rem) %>%
+  union_all(wake) %>%
+  left_join(hyp, .)
+#hypsync <- left_join(hyp, sync)
+
 #datahyp <- left_join(data, hypno, copy=TRUE)
 #hyp <- load_hypno() %>% filter(ID %in% idlist)
 #sleepstats <- load_sleepstats()
